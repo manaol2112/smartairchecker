@@ -1,0 +1,76 @@
+# Air Quality Home Monitor — edit pins to match your wiring (BCM numbers).
+# BME680: I2C (SDA=GPIO2, SCL=GPIO3 on Pi). Connect 3.3V, GND, SDA, SCL.
+
+# RGB LED (DIYables-style common cathode: R, G, B to GPIO, common to GND via board).
+# If your module is common anode (common to 3.3V), set common_anode: true.
+gpio:
+  rgb_red: 17
+  rgb_green: 27
+  rgb_blue: 22
+  buzzer: 18
+  common_anode: false
+
+# Air quality: BME680 gas resistance (Ω) is higher when the air is “cleaner”
+# (after the recommended ~48h burn-in). Adjust after calibration in your home.
+# Optional: set a baseline_ohms from a “known good” room to improve relative score.
+air_quality:
+  # Minimum gas ohm to consider “readings stable”
+  min_gas_ohms: 1000
+  # Thresholds: good >= good_min, moderate between moderate_min and good_min, else bad
+  good_min: 20000
+  moderate_min: 10000
+  # Relative score: blend gas vs baseline (0-100, higher = cleaner)
+  use_relative_score: true
+  baseline_ohms: 50000  # after burn-in, note typical resistance in a fresh room; tune this
+
+# How local clock time maps to “Morning / Lunch / Night” for the line chart
+# (uses the Pi’s time zone; samples outside these windows are not counted on the graph).
+# Times are half-open: from_hour is included, to_hour is excluded. If from_hour > to_hour,
+# the range wraps (night example: 20 → 5 is 8pm–4:59am).
+time_periods:
+  order: [morning, lunch, night]
+  labels:
+    morning: "Morning"
+    lunch: "Lunch"
+    night: "Night"
+  morning:
+    from_hour: 5
+    to_hour: 12
+  lunch:
+    from_hour: 12
+    to_hour: 15
+  night:
+    from_hour: 20
+    to_hour: 5
+
+# Rooms for your experiment (select one in the web UI when you move the setup)
+rooms:
+  - "Master Bedroom"
+  - "Kids Bedroom"
+  - "Guest Room"
+  - "Living Room"
+  - "Kitchen"
+  - "Garage"
+
+# When air is bad, buzzer pattern (seconds)
+buzzer:
+  beep_on: 0.4
+  beep_off: 0.2
+  repeat_every: 2.0
+
+# Data files (created on the Pi)
+data:
+  sqlite_path: "data/readings.db"
+  csv_path: "data/readings_log.csv"
+
+# Web dashboard (open from another device on the same network)
+# Port 5000 is often taken on macOS (AirPlay) — 5001 is a safer default. Override with
+# env SMARTAIR_PORT=8080
+server:
+  host: "0.0.0.0"
+  port: 5001
+
+# Set true only to test the web UI without a sensor (uses fake numbers on the site).
+# For your science project on the Pi, keep this false and do NOT set SENSORS_DRY_RUN=1.
+sensors:
+  dry_run: false
