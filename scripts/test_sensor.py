@@ -2,12 +2,16 @@
 """
 Smart Air Checker — BME680 / I2C diagnostic.
 
-Run on the Raspberry Pi from the project folder (same place as run.py)::
+On the Raspberry Pi, from the project folder (where config.yaml lives)::
+
+  ./fix-dependencies.sh          # once, so .venv has bme680 + PyYAML
+  .venv/bin/python3 scripts/test_sensor.py
+
+Or (this script will switch to .venv automatically if it exists)::
 
   python3 scripts/test_sensor.py
 
-This checks config + environment (why the *web app* might show "simulated"),
-scans the I2C bus, and tries to read the BME680 like the app does.
+Set SMARTAIR_TEST_NO_VENV=1 to force using the current python (no auto venv).
 """
 
 from __future__ import annotations
@@ -19,8 +23,36 @@ import sys
 import time
 from pathlib import Path
 
-# Allow imports when run as: python3 scripts/test_sensor.py
+# Project root (parent of scripts/)
 _ROOT = Path(__file__).resolve().parent.parent
+_SCRIPT = Path(__file__).resolve()
+
+
+def _maybe_reexec_with_venv() -> None:
+    """If .venv exists and we're not already using it, re-run under .venv/bin/python3.
+
+    Avoids 'No module named bme680' / 'yaml' when the user types plain ``python3``.
+
+    We must not compare only *resolved* binary paths: the venv's ``python3`` is often
+    a symlink to the system interpreter, so resolves match even when ``sys.prefix`` is
+    still the **system** prefix (packages would be read from the wrong place)."""
+    if (os.environ.get("SMARTAIR_TEST_NO_VENV") or "").lower() in ("1", "true", "yes"):
+        return
+    venv_dir = _ROOT / ".venv"
+    venv_py = venv_dir / "bin" / "python3"
+    if not venv_py.is_file():
+        return
+    try:
+        if Path(sys.prefix).resolve() == venv_dir.resolve():
+            return
+    except OSError:
+        return
+    # argv[0] for the script must be a path Python can load
+    os.execv(str(venv_py), [str(venv_py), str(_SCRIPT), *sys.argv[1:]])
+
+
+_maybe_reexec_with_venv()
+
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
@@ -29,12 +61,9 @@ try:
 except ImportError:  # pragma: no cover
     print(
         "\nError: no module named 'yaml' (PyYAML).\n\n"
-        "  Option A — use the project venv (recommended after ./run or pi-bootstrap.sh):\n"
-        f"    {_ROOT / '.venv' / 'bin' / 'python3'} scripts/test_sensor.py\n"
-        "    # or:  .venv/bin/pip install -r requirements.txt\n\n"
-        "  Option B — system Python:\n"
-        "    sudo apt update && sudo apt install -y python3-yaml\n"
-        "    # or:  python3 -m pip install --user PyYAML\n",
+        f"  Run:  cd {_ROOT} && ./fix-dependencies.sh\n"
+        f"  Then:  {_ROOT / '.venv' / 'bin' / 'python3'} scripts/test_sensor.py\n\n"
+        "  Or:  sudo apt install -y python3-yaml\n",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -74,6 +103,18 @@ def main() -> int:
     _line()
     print("  Smart Air Checker — BME680 / I2C sensor test")
     _line()
+    print()
+    _sub(f"Python: {sys.executable}")
+    _venv = _ROOT / ".venv" / "bin" / "python3"
+    if _venv.is_file():
+        try:
+            # Do not use resolve() here — venv’s python3 often symlinks to the same
+            # base binary as “system” python, and we only want the true venv path.
+            Path(sys.executable).relative_to(_ROOT / ".venv")
+            _sub("Using project .venv (same as ./run) — good for imports.")
+        except (ValueError, OSError, RuntimeError):
+            _sub("Not using .venv — run:  ./fix-dependencies.sh  then")
+            _sub("  .venv/bin/python3 scripts/test_sensor.py")
     print()
 
     # ---- What the Flask app will do ----
@@ -141,7 +182,20 @@ def main() -> int:
         import bme680 as bme  # type: ignore[import-not-found]
     except ImportError as e:
         print(f"   FAIL: import bme680: {e}")
-        print("   Install:  .venv/bin/pip install bme680   or   pip3 install bme680")
+        print()
+        print("   Fix (run from the project folder):")
+        print("     ./fix-dependencies.sh")
+        print(f"     {_ROOT / '.venv' / 'bin' / 'python3'} -m pip install 'bme680>=1.0.5,<2.0.0'")
+        print("   Then run this test again (prefer: .venv/bin/python3 scripts/test_sensor.py).")
+        return 1
+    except Exception as e:  # pragma: no cover
+        err = str(e).lower()
+        print(f"   FAIL loading bme680 library: {e!r}")
+        if "smbus" in err:
+            print()
+            print("   The driver needs I2C access. On Raspberry Pi OS:")
+            print("     sudo apt install -y python3-smbus i2c-tools")
+            print("   Then re-run:  ./fix-dependencies.sh  (venv uses --system-site-packages on Pi).")
         return 1
 
     addrs: list[tuple[str, int]] = [
