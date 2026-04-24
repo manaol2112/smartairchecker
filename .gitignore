@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 data/
+# Local Pi hotspot / QR generation (from scripts/hotspot.env.example)
+.hotspot.env
+.hotspot.state
+docs/generated/
