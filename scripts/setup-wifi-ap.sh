@@ -8,6 +8,7 @@
 # This script:
 #  - Prefers NetworkManager (nmcli) when it is the active service (common on Pi OS Bookworm desktop).
 #  - Otherwise sets up hostapd + dnsmasq + static IP 192.168.4.1/24 (common on Pi OS Lite or without NM).
+#  - If nmcli hotspot fails, automatically falls back to hostapd (override with HOTSPOT_NM_NO_FALLBACK=1).
 #
 # Phones cannot open your website and join Wi-Fi from a *single* QR. Use:
 #   ./scripts/generate-demo-qrs.sh --detect
@@ -45,6 +46,17 @@ fi
 
 require_bin() { command -v "$1" &>/dev/null; }
 
+nm_diag() {
+  log "---- nmcli (for debugging) ----"
+  nmcli general status 2>&1 | sed 's/^/  /' || true
+  nmcli dev status 2>&1 | sed 's/^/  /' || true
+  nmcli con show --active 2>&1 | sed 's/^/  /' || true
+  if [[ -n "${AP_IFACE:-}" ]]; then
+    nmcli -f all device show "$AP_IFACE" 2>&1 | sed 's/^/  /' || true
+  fi
+  log "---- (end) ----"
+}
+
 # Regulatory domain (many Pi drivers require it before hostapd)
 if command -v iw &>/dev/null; then
   iw reg set "$WIFI_COUNTRY" 2>/dev/null || true
@@ -76,27 +88,14 @@ elif require_bin nmcli; then
   fi
   if systemctl is-active --quiet NetworkManager 2>/dev/null; then
     use_nm=1
-    log "Using NetworkManager (nmcli) hotspot on $AP_IFACE"
+    log "Will try NetworkManager (nmcli) hotspot on $AP_IFACE first"
   fi
 fi
 
-if [[ $use_nm -eq 1 ]]; then
-  log "Disconnecting $AP_IFACE if it is in client mode, then starting hotspot (may take a few seconds)…"
-  nmcli dev disconnect "$AP_IFACE" 2>/dev/null || true
-  nmcli con delete "$CON_NAME" 2>/dev/null || true
-  if ! nmcli dev wifi hotspot ifname "$AP_IFACE" con-name "$CON_NAME" \
-    ssid "$SMARTAIR_AP_SSID" password "$SMARTAIR_AP_PASS"; then
-    die "nmcli hotspot failed. If another app holds $AP_IFACE, disable it or try: nmcli con show"
-  fi
-  if nmcli -g 802-11-wireless.country con show "$CON_NAME" 2>/dev/null | grep -q '^$'; then
-    nmcli con mod "$CON_NAME" 802-11-wireless.country "$WIFI_COUNTRY" 2>/dev/null || true
-  fi
-  nmcli con up "$CON_NAME" 2>/dev/null || true
-  IP_AP="$(ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1 || true)"
-  METHOD="networkmanager"
-else
+# --- classic stack (hostapd) — used as primary or fallback -----------------
+setup_classic_ap() {
   log "Using hostapd + dnsmasq; static $STATIC_PREFIX.1/24 on $AP_IFACE"
-  log "Stopping NetworkManager for this run only (re-enable with: systemctl start NetworkManager)"
+  log "Stopping NetworkManager for this session (re-enable: systemctl start NetworkManager)"
   systemctl stop wpa_supplicant@* 2>/dev/null || true
   systemctl stop wpa_supplicant 2>/dev/null || true
   systemctl stop NetworkManager 2>/dev/null || true
@@ -151,7 +150,6 @@ HPEOF
   if require_bin systemctl; then
     systemctl enable hostapd
     systemctl enable dnsmasq
-    # Restart dhcpcd if present
     systemctl restart dhcpcd 2>/dev/null || true
     systemctl restart dnsmasq
     systemctl restart hostapd
@@ -159,6 +157,86 @@ HPEOF
     service dnsmasq restart
     service hostapd restart
   fi
+}
+
+# Returns 0 if hotspot is up, 1 on failure
+try_nm_ap() {
+  require_bin nmcli || return 1
+
+  log "Preparing $AP_IFACE: turn radio on, ensure managed, clear old connections…"
+  nmcli radio wifi on 2>/dev/null || true
+  nmcli device set "$AP_IFACE" managed yes 2>/dev/null || {
+    log "NetworkManager does not see $AP_IFACE. Check: ip link, wrong AP_IFACE? (export AP_IFACE=wlan1)"
+    return 1
+  }
+
+  # Bring down any active connection on this device (e.g. home Wi-Fi using wlan0)
+  local ac
+  ac=$(nmcli -g CONNECTION device show "$AP_IFACE" 2>/dev/null | head -1 | tr -d '\r' || true)
+  if [[ -n "$ac" && "$ac" != "--" ]]; then
+    log "Bringing down connection: $ac"
+    nmcli con down "$ac" 2>/dev/null || true
+  fi
+  nmcli dev disconnect "$AP_IFACE" 2>/dev/null || true
+  sleep 2
+
+  # Remove our old AP profile and common leftovers that block "wifi hotspot" create
+  nmcli con delete "$CON_NAME" 2>/dev/null || true
+  nmcli con delete "Hotspot" 2>/dev/null || true
+  nmcli con delete "preconfigured" 2>/dev/null || true
+  # Delete any saved connection that uses this Wi-Fi device (frees the card for AP mode)
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    u="${line%%:*}"
+    d="${line#*:}"
+    [[ -z "$u" || -z "$d" ]] && continue
+    if [[ "$d" == "$AP_IFACE" ]]; then
+      log "Removing saved profile (UUID) on $AP_IFACE: ${u:0:8}…"
+      nmcli con delete uuid "$u" 2>/dev/null || true
+    fi
+  done < <(nmcli -t -f UUID,DEVICE con show 2>/dev/null || true)
+  sleep 1
+
+  log "Creating hotspot: SSID=\"$SMARTAIR_AP_SSID\" on $AP_IFACE…"
+  if ! nmcli dev wifi hotspot ifname "$AP_IFACE" con-name "$CON_NAME" \
+    ssid "$SMARTAIR_AP_SSID" password "$SMARTAIR_AP_PASS" 2>&1; then
+    return 1
+  fi
+
+  if [[ "$(nmcli -g 802-11-wireless.country con show "$CON_NAME" 2>/dev/null)" == "" ]]; then
+    nmcli con mod "$CON_NAME" 802-11-wireless.country "$WIFI_COUNTRY" 2>/dev/null || true
+  fi
+  nmcli con up "$CON_NAME" 2>/dev/null || true
+  sleep 1
+  IP_AP="$(ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1 || true)"
+  METHOD="networkmanager"
+  if [[ -z "$IP_AP" ]]; then
+    log "nmcli reported success but no IPv4 on $AP_IFACE yet; waiting…"
+    sleep 2
+    IP_AP="$(ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1 || true)"
+  fi
+  return 0
+}
+
+IP_AP=""
+METHOD=""
+
+if [[ $use_nm -eq 1 ]]; then
+  if ! try_nm_ap; then
+    log "nmcli hotspot command failed (interface busy, wrong name, or driver quirk)."
+    nm_diag
+    if [[ "${HOTSPOT_NM_NO_FALLBACK:-0}" == "1" ]]; then
+      die "Stuck on nmcli. Fix the issue above, or re-run without HOTSPOT_NM_NO_FALLBACK=1 to use hostapd automatically, or: HOTSPOT_USE_CLASSIC=1 ./setuphotspot"
+    fi
+    log "Automatic fallback: hostapd + dnsmasq (reliable for demo; NM will be stopped for this run)."
+    use_nm=0
+  fi
+fi
+
+if [[ $use_nm -eq 1 ]]; then
+  : # IP_AP / METHOD set in try_nm_ap
+else
+  setup_classic_ap
 fi
 
 # Machine-written (safe to delete on Pi; not committed if .gitignore)
@@ -180,6 +258,7 @@ fi
 
 log "Done. Hotspot should be: SSID=\"$SMARTAIR_AP_SSID\" (WPA2)"
 log "IP on $AP_IFACE: ${IP_AP:-unknown} — use in QR and for Flask: http://<that-ip>:$SMARTAIR_PORT"
+log "Mode: $METHOD"
 log "Next: run (as normal user)  $ROOT/scripts/generate-demo-qrs.sh --detect"
 log "And run your app bound to 0.0.0.0, e.g.  SMARTAIR_PORT=$SMARTAIR_PORT ./run"
 if [[ -z "${IP_AP:-}" ]]; then

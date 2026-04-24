@@ -62,6 +62,23 @@ sudo -E ./scripts/setup-wifi-ap.sh
 
 3. **Print** `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` (or show them on a monitor next to the Pi). Put **Wi-Fi** first, **URL** second on the handout.
 
+## If `nmcli hotspot` fails (common fix)
+
+`nmcli` often fails if **something else is still using the Wi-Fi** (saved home network, an old `Hotspot` profile, or the wrong device name). The `setup` script now:
+
+- turns the radio on and sets the interface to **managed**;
+- brings down the active connection, disconnects, and **deletes** saved profiles on that card;
+- if hotspot **still** fails, **falls back to hostapd** (unless you set `HOTSPOT_NM_NO_FALLBACK=1`).
+
+**Manual one-liner** if you need to start over:
+
+```bash
+nmcli dev disconnect wlan0
+nmcli con delete "SmartAir-AP" 2>/dev/null; sudo ./setuphotspot
+```
+
+If your USB Wi-Fi is **`wlan1`**, set in `.hotspot.env`: `AP_IFACE=wlan1`
+
 ## If `nmcli` is not used (hostapd path)
 
 - The script **stops** `NetworkManager` and `wpa_supplicant` only for that session to free `wlan0`. It does **not** permanently disable NetworkManager. To get desktop/guest Wi-Fi back: `sudo systemctl start NetworkManager` (or reboot).
