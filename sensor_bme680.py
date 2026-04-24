@@ -28,6 +28,9 @@ class BME680Monitor:
         iq = self._cfg.get("air_quality", {})
         # Used until the gas heater reports a stable reading (avoids a blank live UI for minutes)
         self._last_gas: float = float(iq.get("baseline_ohms", 50_000))
+        sens = self._cfg.get("sensors", {}) if isinstance(self._cfg.get("sensors"), dict) else {}
+        ri = float(sens.get("read_interval_seconds", 1.0))
+        self._read_interval = max(0.15, min(10.0, ri))
 
     def _init_sensor(self) -> None:
         if self._dry:
@@ -58,11 +61,7 @@ class BME680Monitor:
         s.set_humidity_oversample(bme.OS_2X)
         s.set_pressure_oversample(bme.OS_4X)
         s.set_temperature_oversample(bme.OS_8X)
-        sens = self._cfg.get("sensors", {})
-        fi = int(sens.get("iir_filter_size", 3))
-        fi = max(0, min(7, fi))
-        filt = getattr(bme, f"FILTER_SIZE_{fi}", bme.FILTER_SIZE_3)
-        s.set_filter(filt)
+        s.set_filter(bme.FILTER_SIZE_3)
         s.set_gas_heater_temperature(320)
         s.set_gas_heater_duration(150)
         self._sensor = s
@@ -85,9 +84,6 @@ class BME680Monitor:
         use_rel = bool(iq.get("use_relative_score", True))
         s_min = float(iq.get("scale_min_ohms", 10_000))
         s_max = float(iq.get("scale_max_ohms", 200_000))
-        sens_cfg = self._cfg.get("sensors", {})
-        poll = float(sens_cfg.get("poll_interval_seconds", 1.0))
-        poll = max(0.05, min(10.0, poll))
         t_base = 24.0
         h_base = 50.0
         g_base = 25_000.0
@@ -145,7 +141,7 @@ class BME680Monitor:
                 snap["gas_stabilized"] = gas_stabilized
             with self._lock:
                 self._last = snap
-            time.sleep(poll)
+            time.sleep(self._read_interval)
 
     def uses_synthetic(self) -> bool:
         """True if we are not reading a real I2C sensor (config, env, or hardware failure)."""

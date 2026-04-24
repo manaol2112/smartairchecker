@@ -17,8 +17,7 @@ Pin numbers are counted from the **corner with the square pad**; pin 1 is next t
 
 ```bash
 sudo i2cdetect y-1    # not valid — you may get only a header line or a confusing result
-```ls
-
+```
 
 **Right** (there are **spaces** after `i2cdetect` and after `-y`):
 
@@ -101,8 +100,11 @@ cd /path/to/smartairchecker
 
 If `i2cdetect` shows **76** or **77** but Python still errors, set `sensors.i2c_bus` in `config.yaml` to the bus where that line appears (`0` or `1`).
 
-## 8) Breath / live-audience demo (what reacts how fast?)
+## 8) “Blow on the sensor” / audience demo
 
-- **Temperature and humidity** are the BME680 channels that **react quickly** to someone blowing on the sensor: warm, moist air reaches the small package in **about a second** if the breath is **close** (a few centimetres). For a “watch the numbers move” moment, have people watch **°C** and **% RH** on the dashboard, not only the 0–100 gas score.
-- The **gas** (VOC) channel uses a **heated** metal-oxide layer: it is **slower** (often a few **seconds to tens of seconds** to look stable after a change), and a single breath is a **subtle** VOC event compared to things like cleaning sprays or strong solvents. The **0–100 score** may move only a little, or with a **delay** — that is normal for this chip, not a wiring fault.
-- For a more **responsive** live chart during a presentation, in `config.yaml` under `sensors` try **`poll_interval_seconds: 0.35`** and **`iir_filter_size: 0`**, then **restart** the app. Return to **`poll_interval_seconds: 1.0`** and **`iir_filter_size: 3`** for smoother day-to-day logging.
+The BME680 is **very good** at showing a live reaction to breath **via humidity and (often) temperature**: exhaled air is warm and very moist, so you should see **%RH jump quickly** and sometimes **°C** tick up if the air reaches the little package.
+
+- **Air quality (gas resistance / score):** the heated metal-oxide path is **slower** than T/H, and is **heavily influenced** by the sudden **humidity spike** and heating — so the **0–100 score** may not “spike” in a clean, intuitive way in a few seconds. For a class demo, call out **humidity (and temp)** as the “instant” proof the chip is live; the gas line is a slower VOC + moisture signal.
+- **Faster on-screen updates:** in `config.yaml` set a shorter `sensors.read_interval_seconds` (e.g. `0.4`) and match `server.live_poll_ms` (e.g. `400`) so the browser refreshes often enough to see a short breath. Restart the app after editing.
+
+**Tip:** point breath **toward the **sensor** package**, not only the board edge; keep the Pi in **open air** so one strong breath is not the only thing in a sealed volume.

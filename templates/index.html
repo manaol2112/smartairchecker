@@ -1489,7 +1489,8 @@
           refetchChartOnly();
         });
       }
-      setInterval(tick, {{ status_poll_ms }});
+      const livePollMs = {{ live_poll_ms|int }};
+      setInterval(tick, livePollMs);
       tick();
     </script>
   </body>

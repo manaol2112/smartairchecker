@@ -77,18 +77,21 @@ def create_app() -> Flask:
     return app
 
 
+def _live_poll_ms() -> int:
+    s = load_config().get("server", {})
+    if not isinstance(s, dict):
+        return 1000
+    ms = int(s.get("live_poll_ms", 1000))
+    return max(200, min(10_000, ms))
+
+
 @app.route("/")
 def index() -> str:
     cfg = load_config()
-    sens = cfg.get("sensors", {})
-    poll = float(sens.get("poll_interval_seconds", 1.0))
-    poll = max(0.05, min(10.0, poll))
-    # Browser refresh: slightly faster than the sensor loop so the chart keeps up.
-    status_poll_ms = max(200, min(1000, int(poll * 1000 * 0.55)))
     return render_template(
         "index.html",
         rooms=cfg.get("rooms", []),
-        status_poll_ms=status_poll_ms,
+        live_poll_ms=_live_poll_ms(),
     )
 
 
@@ -100,6 +103,7 @@ def api_status() -> Any:
             "sensor": snap,
             "room": state.get_current_room(),
             "rooms": load_config().get("rooms", []),
+            "live_poll_ms": _live_poll_ms(),
             # "live" only when a real BME680 is in use; otherwise pretend numbers for the UI
             "data_source": "simulated"
             if _get_monitor().uses_synthetic()
