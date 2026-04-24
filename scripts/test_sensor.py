@@ -179,6 +179,11 @@ def main() -> int:
     print("4) Direct Python read (bypasses config dry_run — tests hardware + driver)")
     print()
     try:
+        from bme_i2c import i2c_bus_from_cfg, open_smbus
+    except ImportError as e:  # pragma: no cover
+        print(f"   FAIL: {e}")
+        return 1
+    try:
         import bme680 as bme  # type: ignore[import-not-found]
     except ImportError as e:
         print(f"   FAIL: import bme680: {e}")
@@ -198,6 +203,15 @@ def main() -> int:
             print("   Then re-run:  ./fix-dependencies.sh  (venv uses --system-site-packages on Pi).")
         return 1
 
+    bus_n = i2c_bus_from_cfg(cfg)
+    print(f"   Config: sensors.i2c_bus = {bus_n}  (change in config.yaml if wrong — try 0 or 1).")
+    try:
+        i2c = open_smbus(bus_n)
+    except OSError as e:
+        print(f"   FAIL: could not open I2C bus {bus_n}: {e!r}")
+        _sub("Check /dev/i2c-N exists, I2C is enabled, and you are in the i2c group (or use sudo).")
+        return 1
+
     addrs: list[tuple[str, int]] = [
         ("I2C_ADDR_PRIMARY", bme.I2C_ADDR_PRIMARY),
         ("I2C_ADDR_SECONDARY", bme.I2C_ADDR_SECONDARY),
@@ -207,19 +221,21 @@ def main() -> int:
     last_err: Exception | None = None
     for name, addr in addrs:
         try:
-            s = bme.BME680(addr)
+            s = bme.BME680(addr, i2c_device=i2c)
             used_addr = addr
-            print(f"   OK: opened BME680 on {name} = 0x{addr:02x}")
+            print(f"   OK: opened BME680 on {name} = 0x{addr:02x}  (I2C bus {bus_n})")
             break
         except (RuntimeError, OSError) as e:
             last_err = e
-            print(f"   … not at 0x{addr:02x}: {e}")
+            print(f"   … not on bus {bus_n} at 0x{addr:02x}: {e}")
     if s is None:
         print()
-        print("   FAIL: could not open the sensor on 0x76 or 0x77.")
+        print("   FAIL: could not open the sensor (both 0x76 and 0x77 failed on this bus).")
         if last_err:
             _sub(f"Last error: {last_err!r}")
-        _sub("Fix wiring, I2C enable, and permissions (i2c group, or run this script with sudo to test).")
+        _sub("Try sensors.i2c_bus: 0 in config.yaml, or the other value if you use 0 now.")
+        _sub("Run:  sudo i2cdetect -y 0  and  sudo i2cdetect -y 1  — look for 76 or 77.")
+        _sub("Also check wiring, I2C enabled, 3.3V, and i2c group / permissions.")
         return 1
 
     s.set_humidity_oversample(bme.OS_2X)

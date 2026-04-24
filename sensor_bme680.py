@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     import bme680
 
 from air_quality import AirQualityResult, evaluate_air_quality
+from bme_i2c import i2c_bus_from_cfg, open_smbus
 from settings import is_dry_run, load_config
 
 logger = logging.getLogger(__name__)
@@ -33,24 +34,26 @@ class BME680Monitor:
             return
         import bme680 as bme
 
+        bus_n = i2c_bus_from_cfg(self._cfg)
+        i2c = open_smbus(bus_n)
         addrs: list[int] = [bme.I2C_ADDR_PRIMARY, bme.I2C_ADDR_SECONDARY]
         last_err: Exception | None = None
         s = None
         for addr in addrs:
             try:
-                s = bme.BME680(addr)
-                logger.info("BME680 opened on I2C 0x%02x (SDA/SCL, 3.3V, GND)", addr)
+                s = bme.BME680(addr, i2c_device=i2c)
+                logger.info("BME680 on I2C bus %d, address 0x%02x (set sensors.i2c_bus in config if wrong bus)", bus_n, addr)
                 break
             except (RuntimeError, OSError) as e:
                 last_err = e
-                logger.debug("BME680 not at 0x%02x: %s", addr, e)
+                logger.debug("BME680 not on bus %d at 0x%02x: %s", bus_n, addr, e)
         if s is None:
             assert last_err is not None
             raise RuntimeError(
-                "Could not open BME680 on I2C (tried 0x76 and 0x77). "
-                "Enable I2C (sudo raspi-config → Interface Options → I2C), "
-                "add user to the i2c group, and check SDA/SCL and 3.3V. "
-                "Run:  sudo i2cdetect -y 1  (or bus 0 on older Pis)."
+                f"Could not open BME680 on I2C bus {bus_n} (tried 0x76 and 0x77). "
+                "If you see IOError, set sensors: i2c_bus: 0 in config.yaml and retry, or run "
+                "sudo i2cdetect -y 0  and  sudo i2cdetect -y 1  to see which bus shows 76/77. "
+                "Enable I2C, add the user to the i2c group, and check SDA/SCL and 3.3V."
             ) from last_err
         s.set_humidity_oversample(bme.OS_2X)
         s.set_pressure_oversample(bme.OS_4X)
