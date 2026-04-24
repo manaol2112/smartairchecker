@@ -114,4 +114,35 @@ log "Upgrading pip…"
 pip install -U pip setuptools wheel
 log "Installing Python dependencies from requirements.txt…"
 pip install -r requirements.txt
+
+verify_imports() {
+  "$VENV/bin/python3" -c "import yaml; import bme680; import flask; import gpiozero" 2>/dev/null
+}
+
+if verify_imports; then
+  log "Verified: import yaml, bme680, flask, gpiozero — OK"
+else
+  log "Some imports failed; re-running pip with --no-cache-dir…"
+  pip install --no-cache-dir -U pip setuptools wheel
+  pip install --no-cache-dir -r requirements.txt
+fi
+
+if ! verify_imports; then
+  log "Retrying with explicit PyPI names (bme680, PyYAML, flask, gpiozero)…"
+  pip install --no-cache-dir "bme680>=1.0.5" "PyYAML>=6.0.1" "flask>=3.0" "gpiozero>=2.0" || true
+fi
+
+if ! verify_imports; then
+  echo "" >&2
+  log "ERROR: Still cannot import bme680 / yaml / flask / gpiozero in $VENV"
+  echo "--------------------------------------------------------------------------------" >&2
+  echo "  On Raspberry Pi, try:  sudo apt update && sudo apt install -y python3-smbus python3-yaml" >&2
+  echo "  Then run:  ./fix-dependencies.sh" >&2
+  echo "  Start the app with:  ./run  (not plain: python3 run.py) " >&2
+  echo "--------------------------------------------------------------------------------" >&2
+  "$VENV/bin/python3" -c "import yaml; import bme680; import flask; import gpiozero" 2>&1 || true
+  exit 1
+fi
+
 log "Done. Start the app with:  ./run   or:  ${VENV}/bin/python3 run.py"
+log "Re-run this anytime dependencies break:  ./fix-dependencies.sh  or  ./pi-bootstrap.sh"

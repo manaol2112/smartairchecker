@@ -1,4 +1,4 @@
-# Install with:  ./pi-bootstrap.sh   (or  bash scripts/pi-bootstrap.sh)  on the Pi
+# Install everything (OS + venv + pip):  ./fix-dependencies.sh  (or ./pi-bootstrap.sh)
 # Or:  pip install -r requirements.txt   inside your venv
 bme680>=1.0.5
 flask>=3.0.0
