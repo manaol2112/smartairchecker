@@ -529,27 +529,100 @@
         font-size: clamp(1.45rem, 3.5vw, 1.85rem);
         color: #0b4f6b;
       }
-      .data-source {
-        font-size: 1.02rem;
-        font-weight: 800;
-        padding: 0.65rem 0.85rem;
-        border-radius: 12px;
-        margin: 0 0 1rem;
-        border: 2px dashed var(--line);
-        background: #fff;
-        color: #4a1868;
+      /* Is this number from the real BME680 on the Pi, or simulated? */
+      .sensor-source-indicator {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 14px;
+        margin: 0 0 0.75rem;
+        border: 3px solid;
+        font-family: var(--font);
       }
-      .data-source.ok {
+      .sensor-source-indicator__dot {
+        flex-shrink: 0;
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 50%;
+        margin-top: 0.2rem;
+        border: 2px solid rgba(0, 0, 0, 0.12);
+        box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+      }
+      .sensor-source-indicator--wait {
+        background: #f3f0ff;
+        border-color: #b197fc;
+        color: #3b0f5c;
+      }
+      .sensor-source-indicator--wait .sensor-source-indicator__dot {
+        background: #b197fc;
+        animation: sensor-pulse 1.2s ease-in-out infinite;
+      }
+      .sensor-source-indicator--live {
+        background: linear-gradient(135deg, #d3f9d8 0%, #b2f2bb 100%);
         border-color: #2f9e44;
-        border-style: solid;
-        background: #d3f9d8;
-        color: #0d5c2e;
+        color: #0b4623;
+        box-shadow: 0 4px 0 #1c7c37;
       }
-      .data-source.warn {
+      .sensor-source-indicator--live .sensor-source-indicator__dot {
+        background: #37b24d;
+        box-shadow: 0 0 0 3px #fff, 0 0 12px #37b24d;
+      }
+      .sensor-source-indicator--sim {
+        background: linear-gradient(135deg, #fff3bf 0%, #ffec99 100%);
         border-color: #f59f00;
-        border-style: solid;
-        background: #fff3bf;
-        color: #8a4b00;
+        color: #5c2e00;
+        box-shadow: 0 4px 0 #d97706;
+      }
+      .sensor-source-indicator--sim .sensor-source-indicator__dot {
+        background: #fd7e14;
+      }
+      @keyframes sensor-pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sensor-source-indicator--wait .sensor-source-indicator__dot {
+          animation: none;
+        }
+      }
+      .sensor-source-indicator__title {
+        display: block;
+        font-family: var(--display);
+        font-size: 1.05rem;
+        font-weight: 800;
+        line-height: 1.3;
+        margin: 0 0 0.2rem;
+      }
+      .sensor-source-indicator__sub {
+        display: block;
+        font-size: 0.86rem;
+        font-weight: 600;
+        line-height: 1.4;
+        opacity: 0.95;
+      }
+      .sensor-source-indicator__tag {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.45rem;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.75);
+        margin-bottom: 0.35rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+      .sensor-source-indicator--live .sensor-source-indicator__tag {
+        color: #0b4623;
+      }
+      .sensor-source-indicator--sim .sensor-source-indicator__tag {
+        color: #5c2e00;
       }
       .chip {
         display: inline-flex;
@@ -830,7 +903,20 @@
             </h3>
             <p class="live-lead">For your demo, watch the number and the line move every few seconds.</p>
           </div>
-          <p id="dataSource" class="data-source">Checking sensor…</p>
+          <div
+            id="sensorSourceIndicator"
+            class="sensor-source-indicator sensor-source-indicator--wait"
+            role="status"
+            aria-live="polite"
+            aria-label="Whether readings come from the BME680 hardware"
+          >
+            <span class="sensor-source-indicator__dot" aria-hidden="true"></span>
+            <div>
+              <span class="sensor-source-indicator__tag" id="sensorSourceTag">Status</span>
+              <strong class="sensor-source-indicator__title" id="sensorSourceTitle">Checking data source…</strong>
+              <span class="sensor-source-indicator__sub" id="sensorSourceSub"></span>
+            </div>
+          </div>
           <p id="gasWarmHint" class="live-warm-hint" role="status" aria-live="polite"></p>
           <div class="live-stage">
             <div class="live-score-block">
@@ -1309,6 +1395,34 @@
           chip.innerHTML = '<span class="dot" style="background: #a8a29e"></span>Sensor warming up…';
         }
       }
+      function setSensorSourceIndicator(st) {
+        const box = el("sensorSourceIndicator");
+        const tag = el("sensorSourceTag");
+        const title = el("sensorSourceTitle");
+        const sub = el("sensorSourceSub");
+        if (!box || !tag || !title || !sub) return;
+        const s = st.sensor || {};
+        const live = st.data_source === "live";
+        if (st.data_source === "simulated") {
+          box.className = "sensor-source-indicator sensor-source-indicator--sim";
+          tag.textContent = "Not the hardware";
+          title.textContent = "These numbers are simulated (not from the BME680 chip).";
+          sub.textContent =
+            "To use the real sensor: set sensors.dry_run to false in config.yaml, remove env SENSORS_DRY_RUN, and check I2C — on the Pi run: i2cdetect -y 1 and look for 76 or 77.";
+        } else {
+          box.className = "sensor-source-indicator sensor-source-indicator--live";
+          tag.textContent = "From your sensor";
+          title.textContent = "This live block uses real readings from the BME680 on the Pi (I2C).";
+          if (s.quality && s.gas_stabilized === false) {
+            sub.textContent =
+              "Gas heater still warming: temperature & humidity are already from the sensor; the score will follow the gas reading when it stabilizes.";
+          } else {
+            sub.textContent =
+              "Temperature, humidity, pressure, and gas resistance are read from the physical sensor, not pre-made test values.";
+          }
+        }
+        box.setAttribute("aria-label", live ? "Data source: real BME680 sensor" : "Data source: simulated, not the chip");
+      }
       function fmtTime(ts) {
         if (!ts) return "—";
         return new Date(ts * 1000).toLocaleTimeString(undefined, {
@@ -1328,15 +1442,7 @@
             return;
           }
           if (chartPayload.available_dates) syncDateDropdown(chartPayload.available_dates);
-          const source = el("dataSource");
-          if (st.data_source === "simulated") {
-            source.textContent =
-              "Practice mode: simulated numbers. For real sensor: set sensors.dry_run to false in config.yaml, unset SENSORS_DRY_RUN, and check I2C (on the Pi: i2cdetect -y 1 should show 76 or 77).";
-            source.className = "data-source warn";
-          } else {
-            source.textContent = "Live BME680 on I2C — real temperature, humidity, pressure, and gas.";
-            source.className = "data-source ok";
-          }
+          setSensorSourceIndicator(st);
           const s = st.sensor || {};
           const warm = el("gasWarmHint");
           if (warm) {
