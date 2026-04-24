@@ -3,9 +3,9 @@
 From the project folder::
 
   ./run
-  # On the Pi, first time: ./run  runs  scripts/pi-bootstrap.sh  (apt + venv + pip) if .venv
-  # is missing, then starts the app. You can re-run:  bash scripts/pi-bootstrap.sh
-  # Manual venv:  bash scripts/pi-bootstrap.sh  then  .venv/bin/python3 run.py
+  # On the Pi, first time: ./run  runs  ./pi-bootstrap.sh  (or scripts/pi-bootstrap.sh) if .venv
+  # is missing, then starts the app. Re-run setup:  ./pi-bootstrap.sh
+  # Manual venv:  ./pi-bootstrap.sh  then  .venv/bin/python3 run.py
 
   ./run.sh
   .venv/bin/python3 run.py

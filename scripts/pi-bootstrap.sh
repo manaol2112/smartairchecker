@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # First-time and repeat dependency setup (safe to run more than once).
-# From the project root:  bash scripts/pi-bootstrap.sh
+# From the project root:  ./pi-bootstrap.sh  OR  bash scripts/pi-bootstrap.sh
 # On Raspberry Pi, creates .venv with --system-site-packages so the BME680
 # I2C library can use the OS smbus module (from the python3-smbus package).
 

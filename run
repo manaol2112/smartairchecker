@@ -6,10 +6,10 @@ export PYTHONPATH="$ROOT"
 
 if [[ ! -x "$ROOT/.venv/bin/python3" ]]; then
   echo ""
-  echo "  First run: no .venv found — running scripts/pi-bootstrap.sh"
+  echo "  First run: no .venv found — running ./pi-bootstrap.sh (scripts/pi-bootstrap.sh)"
   echo "  (installs system packages on Debian/Raspberry Pi OS if needed, then pip dependencies)"
   echo ""
-  bash "$ROOT/scripts/pi-bootstrap.sh"
+  bash "$ROOT/pi-bootstrap.sh"
 fi
 
 if [[ -x "$ROOT/.venv/bin/python3" ]]; then
