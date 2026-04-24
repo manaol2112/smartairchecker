@@ -14,7 +14,7 @@ You cannot have **one** QR that both auto-connects *and* opens your site in a re
 | Script | Purpose |
 |--------|--------|
 | `scripts/hotspot.env.example` | Copy to `.hotspot.env` in the project root, set `SMARTAIR_AP_SSID` and `SMARTAIR_AP_PASS` (8+ characters). |
-| `scripts/setup-wifi-ap.sh` | On the Pi, installs/configures a hotspot. Prefers **NetworkManager** + `nmcli` when available (typical on Raspberry Pi OS **Bookworm desktop**). Otherwise uses **hostapd + dnsmasq** and static `192.168.4.1/24` (typical on **Lite** or if NM is off). |
+| `scripts/setup-wifi-ap.sh` | On the Pi, installs/configures a hotspot. Prefers **NetworkManager** + `nmcli` when available (typical on Raspberry Pi OS **Bookworm desktop**). If `nmcli` reports success but the interface never reaches real **AP** mode (see `verify-hotspot`), it **automatically falls back** to **hostapd + dnsmasq** and static `192.168.4.1/24`. Otherwise uses hostapd when NM is off or you set `HOTSPOT_USE_CLASSIC=1`. |
 | `scripts/generate-demo-qrs.sh` | Creates `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` plus a small text file with the URL. |
 
 ## One command (on the Pi)
@@ -91,7 +91,8 @@ sudo -E ./scripts/setup-wifi-ap.sh
 
 - turns the radio on and sets the interface to **managed**;
 - brings down the active connection, disconnects, and **deletes** saved profiles on that card;
-- if hotspot **still** fails, **falls back to hostapd** (unless you set `HOTSPOT_NM_NO_FALLBACK=1`).
+- if hotspot **still** fails, or **`iw` never shows AP mode** after `nmcli`, **falls back to hostapd** (unless you set `HOTSPOT_NM_NO_FALLBACK=1`).
+- Optional: `HOTSPOT_NM_STRICT=1` keeps the NetworkManager result even when `iw` does not show AP mode (for debugging only; phones will usually still not see the SSID).
 
 **Manual one-liner** if you need to start over:
 

@@ -8,7 +8,8 @@
 # This script:
 #  - Prefers NetworkManager (nmcli) when it is the active service (common on Pi OS Bookworm desktop).
 #  - Otherwise sets up hostapd + dnsmasq + static IP 192.168.4.1/24 (common on Pi OS Lite or without NM).
-#  - If nmcli hotspot fails, automatically falls back to hostapd (override with HOTSPOT_NM_NO_FALLBACK=1).
+#  - If nmcli hotspot fails or the card never reaches real AP mode (per iw), falls back to hostapd
+#    (override with HOTSPOT_NM_NO_FALLBACK=1, or set HOTSPOT_NM_STRICT=1 to keep the NM result anyway).
 #
 # Phones cannot open your website and join Wi-Fi from a *single* QR. Use:
 #   ./scripts/generate-demo-qrs.sh --detect
@@ -141,7 +142,8 @@ DHCPEOF
   fi
   mkdir -p /etc/dnsmasq.d
   cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
-# SmartAir
+# SmartAir — DHCP only (no DNS on 53) so systemd-resolved does not fight dnsmasq
+port=0
 interface=${AP_IFACE}
 bind-interfaces
 dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
@@ -170,22 +172,47 @@ HPEOF
   IP_AP="${STATIC_PREFIX}.1"
   METHOD="hostapd"
   if require_bin systemctl; then
+    systemctl unmask hostapd 2>/dev/null || true
+    systemctl stop hostapd 2>/dev/null || true
+    pkill -x hostapd 2>/dev/null || true
+    sleep 1
+    if require_bin hostapd; then
+      if hp_test=$(hostapd -t /etc/hostapd/hostapd.conf 2>&1); then
+        log "hostapd: config OK (hostapd -t)"
+      else
+        log "hostapd -t: $hp_test"
+      fi
+    fi
     systemctl enable hostapd
     systemctl enable dnsmasq
     systemctl restart dhcpcd 2>/dev/null || true
-    systemctl restart dnsmasq
-    systemctl unmask hostapd 2>/dev/null || true
-    systemctl restart hostapd
+    # dnsmasq must not abort this script: port 53 often conflicts on Bookworm; smartair config uses port=0
+    systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
+    if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+      log "dnsmasq is not active (DHCP may be missing) — often OK if you only need the Wi-Fi beacons. journal:"
+      journalctl -u dnsmasq -n 15 --no-pager 2>&1 | sed 's/^/  /' || true
+    fi
+    if ! systemctl start hostapd 2>/dev/null; then
+      log "systemctl start hostapd failed — will try hostapd -B if still down…"
+    fi
+    if ! systemctl is-active --quiet hostapd 2>/dev/null && ! pgrep -x hostapd &>/dev/null; then
+      log "Starting hostapd without systemd (hostapd -B)…"
+      if hp_out=$(hostapd -B /etc/hostapd/hostapd.conf 2>&1); then
+        [[ -n "$hp_out" ]] && log "hostapd -B: $hp_out"
+      else
+        log "hostapd -B failed: $hp_out"
+      fi
+    fi
     sleep 2
-    if ! systemctl is-active --quiet hostapd; then
-      log "hostapd failed to run. Last journal lines:"
-      journalctl -u hostapd -n 40 --no-pager 2>&1 | sed 's/^/  /' || true
+    if ! systemctl is-active --quiet hostapd 2>/dev/null && ! pgrep -x hostapd &>/dev/null; then
+      log "hostapd is still not running. Last hostapd journal:"
+      journalctl -u hostapd -n 50 --no-pager 2>&1 | sed 's/^/  /' || true
     elif ! ap_mode_is_up; then
-      log "hostapd is active but $AP_IFACE is not in AP mode yet. Try: sudo $ROOT/scripts/verify-hotspot.sh"
+      log "hostapd is running but $AP_IFACE is not in AP mode yet. Driver issue? try USB Wi-Fi (AP_IFACE=wlan1)"
     fi
   else
-    service dnsmasq restart
-    service hostapd restart
+    service dnsmasq restart 2>/dev/null || true
+    service hostapd restart 2>/dev/null || true
   fi
 }
 
@@ -247,8 +274,12 @@ try_nm_ap() {
   fi
   sleep 2
   if ! ap_mode_is_up; then
-    log "Note: 'iw' does not show AP mode on $AP_IFACE after nmcli. The hotspot may still be broken on some Pis."
-    log "  → Run:  sudo $ROOT/scripts/verify-hotspot.sh   or try:  HOTSPOT_USE_CLASSIC=1 $ROOT/setuphotspot"
+    log "NetworkManager did not put $AP_IFACE in real AP mode (iw shows no 'type ap')."
+    if [[ "${HOTSPOT_NM_STRICT:-0}" == "1" ]]; then
+      log "HOTSPOT_NM_STRICT=1 — not falling back; verify-hotspot may still warn. Prefer unsetting this or use HOTSPOT_USE_CLASSIC=1."
+      return 0
+    fi
+    return 1
   fi
   return 0
 }
@@ -258,7 +289,7 @@ METHOD=""
 
 if [[ $use_nm -eq 1 ]]; then
   if ! try_nm_ap; then
-    log "nmcli hotspot command failed (interface busy, wrong name, or driver quirk)."
+    log "NetworkManager path did not yield a real AP (nmcli failed, or iw never shows type ap)."
     nm_diag
     if [[ "${HOTSPOT_NM_NO_FALLBACK:-0}" == "1" ]]; then
       die "Stuck on nmcli. Fix the issue above, or re-run without HOTSPOT_NM_NO_FALLBACK=1 to use hostapd automatically, or: HOTSPOT_USE_CLASSIC=1 ./setuphotspot"
