@@ -60,307 +60,362 @@
       .intro-hero {
         position: relative;
         margin: 0 0 1.5rem;
-        border-radius: 22px;
+        border-radius: 24px;
         overflow: hidden;
-        border: 1px solid rgba(15, 23, 42, 0.09);
-        background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 40%, #ecfeff 100%);
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 20px 50px -12px rgba(15, 23, 42, 0.12),
-          0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+        border: 3px solid #fda5d5;
+        background: linear-gradient(155deg, #fff7fb 0%, #e0f2fe 35%, #fef9c3 70%, #fae8ff 100%);
+        box-shadow: 0 4px 0 #f472b6, 0 12px 40px rgba(139, 92, 246, 0.15);
       }
       .intro-hero__bg {
         position: absolute;
         inset: 0;
-        background-image: linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
-        background-size: 32px 32px;
-        opacity: 0.55;
-        pointer-events: none;
-      }
-      .intro-hero__bg::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(ellipse 90% 70% at 0% 0%, rgba(20, 184, 166, 0.12), transparent 55%),
-          radial-gradient(ellipse 60% 50% at 100% 100%, rgba(99, 102, 241, 0.08), transparent 50%);
+        background-image: radial-gradient(circle at 15% 20%, rgba(244, 114, 182, 0.2) 0, transparent 40%),
+          radial-gradient(circle at 88% 75%, rgba(34, 211, 238, 0.18) 0, transparent 45%),
+          radial-gradient(circle at 50% 100%, rgba(192, 132, 252, 0.12) 0, transparent 50%);
         pointer-events: none;
       }
       .intro-hero__inner {
         position: relative;
         z-index: 1;
-        padding: clamp(1.35rem, 3.2vw, 2.2rem) clamp(1.2rem, 2.4vw, 2rem) clamp(1.5rem, 2.5vw, 2.1rem);
+        padding: clamp(1.4rem, 3vw, 2rem) clamp(1.1rem, 2.2vw, 1.75rem) clamp(1.4rem, 2.2vw, 1.9rem);
       }
       .intro-ribbon {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         justify-content: center;
-        gap: 0.35rem 0.6rem;
-        font-family: var(--mono);
-        font-size: 0.7rem;
-        font-weight: 500;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: #64748b;
-        margin: 0 0 1.15rem;
-      }
-      .intro-ribbon__mark {
-        color: #0d9488;
-        font-weight: 600;
-      }
-      .intro-ribbon__dot {
-        color: #cbd5e1;
+        gap: 0.4rem 0.65rem;
+        font-family: var(--display);
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #86198f;
+        margin: 0 0 1rem;
+        text-align: center;
       }
       .intro-hero__grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 1.5rem 1.75rem;
+        gap: 1.35rem 1.5rem;
         align-items: start;
       }
       @media (min-width: 860px) {
         .intro-hero__grid {
-          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-          gap: 1.75rem 2rem;
+          grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
         }
       }
-      .intro-eyebrow {
-        font-family: var(--mono);
-        font-size: 0.7rem;
-        font-weight: 500;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: #0d9488;
-        margin: 0 0 0.5rem;
+      .intro-kid-kicker {
+        font-family: var(--display);
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0e7490;
+        margin: 0 0 0.4rem;
+        text-align: center;
       }
       .intro-title,
       #intro-heading {
-        font-family: var(--intro);
-        font-size: clamp(1.4rem, 2.6vw, 1.95rem);
-        font-weight: 600;
-        line-height: 1.25;
-        letter-spacing: -0.025em;
-        color: #0f172a;
-        margin: 0 0 0.9rem;
-        max-width: 32rem;
-        text-align: left;
+        font-family: var(--display);
+        font-size: clamp(1.35rem, 3.2vw, 2.05rem);
+        font-weight: 700;
+        line-height: 1.2;
+        color: #4c1d95;
+        margin: 0 0 0.75rem;
+        text-align: center;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
       }
-      .intro-dek {
-        margin: 0;
-        font-size: 0.96rem;
-        line-height: 1.6;
-        color: #475569;
-        font-weight: 500;
+      .intro-lead-kid {
+        margin: 0 auto 0.5rem;
         max-width: 40rem;
-        text-align: left;
-      }
-      .intro-dek strong {
-        color: #0f172a;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        color: #3b2066;
         font-weight: 600;
+        text-align: center;
       }
-      .intro-byline {
-        margin: 1.1rem 0 0;
-        font-family: var(--intro);
-        font-size: 0.92rem;
-        font-weight: 600;
-        color: #334155;
-        text-align: left;
-        border-left: 3px solid #2dd4bf;
-        padding: 0.2rem 0 0.2rem 0.75rem;
+      .intro-lead-kid strong {
+        color: #a21caf;
       }
-      .intro-facts {
-        list-style: none;
-        margin: 1.1rem 0 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.45rem;
-      }
-      .intro-facts li {
+      .intro-badges {
         display: flex;
         flex-wrap: wrap;
-        align-items: baseline;
-        gap: 0.35rem 0.5rem;
-        font-size: 0.8rem;
-        line-height: 1.45;
-        color: #64748b;
-        font-weight: 500;
-        text-align: left;
+        justify-content: center;
+        gap: 0.4rem 0.5rem;
+        margin: 0.75rem 0 0;
+        list-style: none;
+        padding: 0;
       }
-      .intro-facts .im {
-        font-family: var(--mono);
-        font-size: 0.65rem;
+      .intro-badges li {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #5b21b6;
+        background: rgba(255, 255, 255, 0.75);
+        border: 2px solid #ddd6fe;
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem 0.4rem;
+        box-shadow: 0 2px 0 #c4b5fd;
+      }
+      .intro-byline {
+        margin: 0.9rem 0 0;
+        text-align: center;
+        font-family: var(--display);
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #be185d;
+      }
+      .intro-curious {
+        margin: 1.1rem 0 1.25rem;
+        max-width: 40rem;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .intro-curious__h {
+        font-family: var(--display);
+        font-size: 1.1rem;
+        color: #0c4a6e;
+        margin: 0 0 0.6rem;
+        text-align: center;
+      }
+      .intro-curious__hint {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #7c3aed;
+        text-align: center;
+        margin: 0 0 0.5rem;
+      }
+      .curious-card {
+        margin-bottom: 0.5rem;
+        border-radius: 16px;
+        background: #fff;
+        border: 3px solid #93c5fd;
+        box-shadow: 0 3px 0 #3b82f6;
+        overflow: hidden;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .curious-card[open] {
+        border-color: #a78bfa;
+        box-shadow: 0 4px 0 #7c3aed;
+      }
+      .curious-card summary {
+        font-family: var(--display);
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #1e3a8a;
+        padding: 0.65rem 0.9rem 0.7rem 2.1rem;
+        cursor: pointer;
+        list-style: none;
+        position: relative;
+        user-select: none;
+      }
+      .curious-card summary::-webkit-details-marker {
+        display: none;
+      }
+      .curious-card summary::before {
+        content: "▶";
+        position: absolute;
+        left: 0.7rem;
+        top: 50%;
+        transform: translateY(-50%) rotate(0deg);
+        font-size: 0.7rem;
+        color: #6366f1;
+        transition: transform 0.2s ease;
+      }
+      .curious-card[open] summary::before {
+        transform: translateY(-50%) rotate(90deg);
+      }
+      .curious-card summary:hover {
+        background: linear-gradient(90deg, #eff6ff, #f5f3ff);
+      }
+      .curious-card p {
+        margin: 0;
+        padding: 0 0.9rem 0.8rem 2.1rem;
+        font-size: 0.92rem;
+        line-height: 1.5;
+        color: #4c1d95;
         font-weight: 600;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: #0e7490;
-        min-width: 5.5rem;
+        border-top: 2px dashed #e9d5ff;
+      }
+      .curious-teacher {
+        margin-top: 0.6rem;
+        border-radius: 14px;
+        border: 2px dashed #94a3b8;
+        background: rgba(248, 250, 252, 0.9);
+        padding: 0.4rem 0.65rem 0.55rem;
+        font-size: 0.84rem;
+        color: #475569;
+        font-weight: 600;
+      }
+      .curious-teacher summary {
+        font-family: var(--font);
+        font-size: 0.85rem;
+        font-weight: 800;
+        color: #64748b;
+        cursor: pointer;
+        list-style: none;
+        padding: 0.2rem 0.3rem;
+      }
+      .curious-teacher summary::-webkit-details-marker {
+        display: none;
+      }
+      .curious-teacher[open] summary {
+        margin-bottom: 0.35rem;
+      }
+      .curious-teacher p {
+        margin: 0;
+        padding: 0 0.1rem 0.2rem;
+        border: 0;
+        font-size: 0.8rem;
+        line-height: 1.5;
+        color: #334155;
+        font-weight: 500;
+        font-family: var(--mono);
       }
       .intro-hero__aside {
         display: flex;
         flex-direction: column;
-        gap: 0.9rem;
+        gap: 0.75rem;
       }
-      .intro-aside__card {
-        background: rgba(255, 255, 255, 0.72);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 16px;
-        padding: 1.05rem 1.1rem 1.15rem;
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+      .intro-bubble {
+        border-radius: 20px;
+        padding: 1rem 1.1rem 1.05rem;
+        border: 3px solid;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+        transition: transform 0.15s ease;
       }
-      .intro-aside__label {
-        display: block;
-        font-family: var(--mono);
-        font-size: 0.62rem;
-        font-weight: 600;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: #64748b;
-        margin: 0 0 0.4rem;
+      .intro-bubble:hover {
+        transform: scale(1.02);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .intro-bubble:hover {
+          transform: none;
+        }
+        .curious-card {
+          transition: none;
+        }
+      }
+      .intro-bubble--score {
+        background: linear-gradient(180deg, #ecfdf5 0%, #fff 55%);
+        border-color: #34d399;
+        box-shadow: 0 4px 0 #10b981;
+      }
+      .intro-bubble--led {
+        background: linear-gradient(180deg, #fffbeb 0%, #fff 50%);
+        border-color: #fbbf24;
+        box-shadow: 0 4px 0 #d97706;
+      }
+      .intro-bubble__h {
+        font-family: var(--display);
+        font-size: 0.95rem;
+        color: #166534;
+        margin: 0 0 0.35rem;
+      }
+      .intro-bubble--led .intro-bubble__h {
+        color: #9a3412;
       }
       .intro-aside__num {
-        font-family: var(--intro);
-        font-size: clamp(1.9rem, 4vw, 2.4rem);
-        font-weight: 700;
-        letter-spacing: -0.04em;
-        color: #0d9488;
+        font-family: var(--display);
+        font-size: clamp(1.8rem, 3.8vw, 2.35rem);
+        font-weight: 800;
+        color: #047857;
         line-height: 1;
         margin: 0 0 0.4rem;
       }
-      .intro-aside__sub {
+      .intro-bubble p {
         margin: 0;
-        font-size: 0.72rem;
-        line-height: 1.45;
-        color: #94a3b8;
-        font-weight: 500;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        color: #4b5563;
+        font-weight: 600;
       }
       .intro-led {
         display: flex;
         flex-direction: column;
-        gap: 0.45rem;
-        margin: 0.1rem 0 0;
+        gap: 0.4rem;
+        margin: 0.4rem 0 0;
       }
       .intro-led__row {
         display: flex;
         align-items: center;
-        gap: 0.55rem;
-        font-size: 0.8rem;
-        color: #334155;
-        font-weight: 600;
-        text-align: left;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: #78350f;
+        font-weight: 700;
       }
       .intro-led__row .k-dot {
-        width: 0.75rem;
-        height: 0.75rem;
+        width: 0.8rem;
+        height: 0.8rem;
         border-radius: 50%;
+        border: 2px solid rgba(0, 0, 0, 0.12);
         flex-shrink: 0;
-        border: 2px solid rgba(15, 23, 42, 0.12);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
       }
       .intro-led__row .g {
-        background: #22c55e;
+        background: #4ade80;
       }
       .intro-led__row .y {
         background: #facc15;
       }
       .intro-led__row .r {
-        background: #f87171;
+        background: #fb7185;
       }
-      .intro-investigation {
-        margin-top: 1.35rem;
-        padding-top: 1.25rem;
-        border-top: 1px solid rgba(15, 23, 42, 0.08);
+      .intro-try {
+        margin-top: 1.15rem;
+        padding: 0.9rem 0.75rem 1rem;
+        background: linear-gradient(135deg, #dbeafe, #fae8ff, #ffedd5);
+        border-radius: 18px;
+        border: 3px solid #7dd3fc;
       }
-      .intro-investigation__h {
-        font-family: var(--intro);
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #0f172a;
-        margin: 0 0 0.75rem;
+      .intro-try__h {
+        font-family: var(--display);
+        font-size: 1.1rem;
         text-align: center;
+        color: #0369a1;
+        margin: 0 0 0.6rem;
       }
       .intro-pills {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 0.5rem;
+        gap: 0.45rem;
       }
-      @media (min-width: 600px) {
+      @media (min-width: 620px) {
         .intro-pills {
           grid-template-columns: repeat(3, 1fr);
         }
       }
       .intro-pill {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.2rem;
-        text-align: left;
+        display: block;
         margin: 0;
-        padding: 0.65rem 0.8rem 0.7rem;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.55);
-        border: 1px solid rgba(15, 23, 42, 0.07);
-        font-size: 0.8rem;
-        line-height: 1.4;
-        color: #475569;
-        font-weight: 500;
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+        padding: 0.7rem 0.7rem 0.75rem;
+        border-radius: 14px;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        color: #4c0f6d;
+        font-weight: 700;
+        text-align: center;
+        background: #fff;
+        border: 2px solid #f0abfc;
+        box-shadow: 0 2px 0 #e879f9;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+        cursor: default;
+      }
+      .intro-pill:hover {
+        transform: translateY(-2px) rotate(-0.5deg);
+        box-shadow: 0 4px 0 #c026d3;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .intro-pill:hover {
+          transform: none;
+        }
       }
       .intro-pill strong {
         display: block;
-        font-family: var(--intro);
-        font-size: 0.72rem;
-        font-weight: 700;
-        color: #0d9488;
-        letter-spacing: 0.02em;
-        margin: 0 0 0.1rem;
-      }
-      .intro-hero__main code,
-      .intro-aside__sub code,
-      .intro-dek code {
-        font-family: var(--mono);
-        font-size: 0.78em;
-        font-weight: 500;
-        color: #0e7490;
-        background: rgba(14, 116, 144, 0.08);
-        padding: 0.1em 0.3em;
-        border-radius: 4px;
+        font-size: 0.8rem;
+        color: #a21caf;
+        margin-bottom: 0.2rem;
       }
       @media (max-width: 859px) {
         .intro-ribbon {
-          text-align: center;
-        }
-        .intro-hero__main {
-          text-align: center;
-        }
-        .intro-eyebrow,
-        .intro-title,
-        #intro-heading,
-        .intro-dek,
-        .intro-facts,
-        .intro-facts li {
-          text-align: center;
-        }
-        .intro-facts {
-          align-items: center;
-        }
-        .intro-facts .im {
-          min-width: auto;
-        }
-        .intro-byline {
-          display: inline-block;
-          text-align: center;
-          border-left: none;
-          border-top: 3px solid #2dd4bf;
-          padding: 0.5rem 0.75rem 0 0.75rem;
-        }
-        .intro-title,
-        #intro-heading,
-        .intro-dek {
-          margin-left: auto;
-          margin-right: auto;
+          font-size: 0.9rem;
         }
       }
       .panel {
@@ -1155,81 +1210,101 @@
       <header class="intro-hero" id="project-intro" aria-labelledby="intro-heading">
         <div class="intro-hero__bg" aria-hidden="true"></div>
         <div class="intro-hero__inner">
-          <p class="intro-ribbon">
-            <span class="intro-ribbon__mark">Searles Elementary</span>
-            <span class="intro-ribbon__dot" aria-hidden="true">·</span>
-            <span>Science fair · Field study</span>
+          <p class="intro-ribbon">🌈 Searles Elementary — science fair · let’s explore the air!</p>
+          <p class="intro-kid-kicker">🔭 The big question</p>
+          <h1 class="intro-title" id="intro-heading">
+            Which room has the nicest-feeling air on our sensor — and does it change from morning to
+            lunch to evening?
+          </h1>
+          <p class="intro-lead-kid">
+            We use a tiny <strong>air chip</strong> (BME680) and a <strong>Raspberry Pi</strong> to turn
+            invisible air stuff into a <strong>0–100 game score</strong> on this page. It is
+            <strong>our experiment’s rules</strong>, not a government website — but it is real
+            hardware! Move the box, <strong>pick the room</strong> down below, and the clock says if it is
+            morning, lunch, or evening.
           </p>
-          <div class="intro-hero__grid">
-            <div class="intro-hero__main">
-              <p class="intro-eyebrow">Research question</p>
-              <h1 class="intro-title" id="intro-heading">
-                Where in our home is the air at its best on this sensor — and how does that change
-                from morning, to lunch, to evening?
-              </h1>
-              <p class="intro-dek">
-                This study compares <strong>rooms</strong> and <strong>times of day</strong> using a
-                BME680 sensor on a Raspberry Pi. The <strong>0–100 number</strong> is our own index
-                from <strong>gas resistance</strong> (a relative “how does the air look to this
-                metal-oxide film?” reading — not a government air-quality law). Bigger on our scale
-                = higher gas resistance in the model we set in <code>config.yaml</code>. Move the
-                rig, set the <strong>room</strong> below, and the Pi’s clock places each sample in
-                morning, lunch, or evening.
+          <ul class="intro-badges" role="list" aria-label="What the gizmo measures">
+            <li>🌡️ warm / cool</li>
+            <li>💧 water in the air</li>
+            <li>🫧 a “gas sniff” air signal</li>
+            <li>⏱️ saved for graphs</li>
+          </ul>
+          <p class="intro-byline">✨ Project by Sophia Merce G. Manaol</p>
+          <div class="intro-curious" aria-label="Curiosity corner">
+            <h2 class="intro-curious__h">🤔 Curious? Open any card (tap the arrow!)</h2>
+            <p class="intro-curious__hint">The answers are short — you can’t break anything by looking.</p>
+            <details class="curious-card">
+              <summary>What is the 0 to 100 number?</summary>
+              <p>
+                It is a line we draw in software from the sensor’s
+                <strong>gas</strong> reading (bigger “gas” ohms in our model usually land higher on
+                the 0–100 line). Bigger = “happier on our scale,” not a doctor’s test.
               </p>
-              <p class="intro-byline">Sophia Merce G. Manaol</p>
-              <ul class="intro-facts" role="list">
-                <li>
-                  <span class="im">Sensor</span>
-                  <span>Bosch BME680 — temperature, humidity, barometric pressure, gas (MOx)</span>
-                </li>
-                <li>
-                  <span class="im">Data</span>
-                  <span>SQLite + chart on this page; 30 min logging (configurable)</span>
-                </li>
-              </ul>
-            </div>
-            <aside class="intro-hero__aside" aria-label="Index scale and hardware LEDs">
-              <div class="intro-aside__card">
-                <span class="intro-aside__label">Project air index (software)</span>
-                <p class="intro-aside__num" aria-hidden="true">0 – 100</p>
-                <p class="intro-aside__sub">
-                  Mapped from the gas channel (Ω) with your <code>scale_min_ohms</code> /
-                  <code>scale_max_ohms</code>. Labels “good / moderate / bad” use
-                  <code>good_min</code> and <code>moderate_min</code>.
+            </details>
+            <details class="curious-card">
+              <summary>Do the colored lights on the box match the website?</summary>
+              <p>
+                Yes! Green, yellow, and red on the build line up with the
+                <strong>good / okay / yikes</strong> ideas we coded — same story in two places.
+              </p>
+            </details>
+            <details class="curious-card">
+              <summary>What should I try first?</summary>
+              <p>
+                Change the <strong>room</strong> when the Pi moves, then scroll to
+                <strong>Air score</strong> and watch the wiggly line. Tap the four number tiles to see
+                what each one is!
+              </p>
+            </details>
+            <details class="curious-teacher">
+              <summary>For teachers / parents — one technical sentence</summary>
+              <p>
+                Score: linear map of BME680 gas resistance per air_quality in config.yaml; labels use
+                good_min / moderate_min; room changes gate logs so rows match the space.
+              </p>
+            </details>
+          </div>
+          <div class="intro-hero__grid">
+            <div class="intro-try" role="group" aria-label="Quick ideas to play with the experiment">
+              <h2 class="intro-try__h">🎮 Three ways to play with it</h2>
+              <div class="intro-pills">
+                <p class="intro-pill">
+                  <strong>Room picker</strong>
+                  Every time the box moves, choose the <strong>new room</strong> so the graph tells the
+                  truth.
+                </p>
+                <p class="intro-pill">
+                  <strong>Breath &amp; mist</strong>
+                  A tiny whoosh of breath (gentle!) can make <strong>humidity</strong> jump on purpose.
+                </p>
+                <p class="intro-pill">
+                  <strong>Number tiles</strong>
+                  Under the live air score, <strong>tap</strong> each square — surprise facts pop out.
                 </p>
               </div>
-              <div class="intro-aside__card">
-                <span class="intro-aside__label">RGB on the build (matches)</span>
-                <div class="intro-led" role="list" aria-label="LED colors on the project box">
+            </div>
+            <aside class="intro-hero__aside" aria-label="Score and light legend">
+              <div class="intro-bubble intro-bubble--score">
+                <h3 class="intro-bubble__h">The air “game score”</h3>
+                <p class="intro-aside__num" aria-hidden="true">0 → 100</p>
+                <p>Big number on our line = the sensor’s gas story looks “fresher” for how we set the math in the project — still one chip in one home, not a law.</p>
+              </div>
+              <div class="intro-bubble intro-bubble--led">
+                <h3 class="intro-bubble__h">🚦 What the three lights say</h3>
+                <div class="intro-led" role="list" aria-label="Meaning of LED colors on the build">
                   <div class="intro-led__row" role="listitem">
-                    <span class="k-dot g" aria-hidden="true"></span> Green — index in the “good” band
+                    <span class="k-dot g" aria-hidden="true"></span> Green — we called this air “good”
+                    today
                   </div>
                   <div class="intro-led__row" role="listitem">
-                    <span class="k-dot y" aria-hidden="true"></span> Yellow — “moderate”
+                    <span class="k-dot y" aria-hidden="true"></span> Yellow — “hmm, okay, watch it”
                   </div>
                   <div class="intro-led__row" role="listitem">
-                    <span class="k-dot r" aria-hidden="true"></span> Red — “bad” (time to ventilate)
+                    <span class="k-dot r" aria-hidden="true"></span> Red — “let’s get some fresh air in!”
                   </div>
                 </div>
               </div>
             </aside>
-          </div>
-          <div class="intro-investigation" role="group" aria-label="Ideas to try in class">
-            <h2 class="intro-investigation__h">Hands-on with the experiment</h2>
-            <div class="intro-pills">
-              <p class="intro-pill">
-                <strong>Change location</strong>
-                When the Pi moves, pick the new <strong>room</strong> so the graph and log stay honest.
-              </p>
-              <p class="intro-pill">
-                <strong>Breath demo</strong>
-                Very gentle air near the sensor can bump <strong>humidity</strong> and the live score line.
-              </p>
-              <p class="intro-pill">
-                <strong>Tap the boxes</strong>
-                Under “Air score,” tap each <strong>number tile</strong> for a one-line what-it-means note.
-              </p>
-            </div>
           </div>
         </div>
       </header>
