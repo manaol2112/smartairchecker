@@ -55,6 +55,21 @@ if ! ip link show "$AP_IFACE" &>/dev/null; then
   die "Set AP_IFACE in .hotspot.env (e.g. wlan1 if you use a USB Wi-Fi adapter)."
 fi
 
+# 192.168.4.1 must exist on the AP iface before dnsmasq can hand out leases (or phones show "unable to connect")
+ensure_classic_ap_ip() {
+  local cidr="${STATIC_PREFIX}.1/24"
+  if ! ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -qF "${STATIC_PREFIX}.1/"; then
+    log "No ${STATIC_PREFIX}.1 on $AP_IFACE after dhcpcd — setting address (required for phone DHCP)…"
+    ip link set dev "$AP_IFACE" up 2>/dev/null || true
+    ip -4 address replace "$cidr" dev "$AP_IFACE" 2>/dev/null || ip -4 address add "$cidr" dev "$AP_IFACE" 2>/dev/null || true
+  fi
+  if ! ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -qF "${STATIC_PREFIX}.1/"; then
+    log "ERROR: $AP_IFACE still has no ${STATIC_PREFIX}.1 — check /etc/dhcpcd.conf; phones will not get an IP from dnsmasq."
+  else
+    log "AP IPv4 on $AP_IFACE: ${STATIC_PREFIX}.1 (OK for dnsmasq DHCP to clients)"
+  fi
+}
+
 # AP mode is required for the network to be visible; checked after setup
 ap_mode_is_up() {
   if ! command -v iw &>/dev/null; then
@@ -92,7 +107,7 @@ fi
 if require_bin apt-get; then
   log "Installing packages (iw, hostapd, dnsmasq, qrencode optional)…"
   apt-get update -qq
-  apt-get install -y -qq iw hostapd dnsmasq qrencode 2>/dev/null || apt-get install -y -qq iw hostapd dnsmasq
+  apt-get install -y -qq iw hostapd dnsmasq wpasupplicant qrencode 2>/dev/null || apt-get install -y -qq iw hostapd dnsmasq wpasupplicant
 fi
 
 use_nm=0
@@ -142,27 +157,43 @@ DHCPEOF
   fi
   mkdir -p /etc/dnsmasq.d
   cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
-# SmartAir — DHCP only (no DNS on 53) so systemd-resolved does not fight dnsmasq
+# SmartAir — DHCP only (port=0) so we do not bind DNS :53 (avoids clash with systemd-resolved)
 port=0
 interface=${AP_IFACE}
-bind-interfaces
+# bind-dynamic: more reliable on Pi than bind-interfaces if iface comes up late
+bind-dynamic
+dhcp-authoritative
 dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
+dhcp-option=3,${STATIC_PREFIX}.1
+dhcp-option=6,${STATIC_PREFIX}.1
 DNS_EOF
+  # 64-hex wpa_psk avoids hostapd # comments and shell metacharacters in passwords; wpa_passphrase(8) from wpasupplicant
+  HAP_WPA_LINE="wpa_passphrase=${SMARTAIR_AP_PASS}"
+  if require_bin wpa_passphrase; then
+    if pmk=$(wpa_passphrase "$SMARTAIR_AP_SSID" "$SMARTAIR_AP_PASS" 2>/dev/null | sed -n 's/^[[:space:]]*psk=\([0-9a-f]\{64\}\)$/\1/p' | head -1) && [[ -n "$pmk" ]]; then
+      HAP_WPA_LINE="wpa_psk=$pmk"
+    else
+      log "wpa_passphrase: could not derive PSK; using wpa_passphrase= line in hostapd (avoid # in the password in .env or install wpasupplicant)"
+    fi
+  else
+    log "wpa_passphrase not found; install package wpasupplicant for the most reliable WPA2 password handling"
+  fi
   cat >/etc/hostapd/hostapd.conf <<HPEOF
 # SmartAir
 interface=${AP_IFACE}
 driver=nl80211
 ssid=${SMARTAIR_AP_SSID}
-# 2.4 GHz only; channel must be legal in WIFI_COUNTRY
+# 2.4 GHz; channel must be legal in WIFI_COUNTRY
 hw_mode=g
 channel=${AP_CHANNEL}
+ieee80211n=1
 # WMM on helps many phones list the network; ignore_broadcast=0 = SSID not hidden
 wmm_enabled=1
 beacon_int=100
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
-wpa_passphrase=${SMARTAIR_AP_PASS}
+${HAP_WPA_LINE}
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=CCMP
 rsn_pairwise=CCMP
@@ -186,11 +217,13 @@ HPEOF
     systemctl enable hostapd
     systemctl enable dnsmasq
     systemctl restart dhcpcd 2>/dev/null || true
+    sleep 2
+    ensure_classic_ap_ip
     # dnsmasq must not abort this script: port 53 often conflicts on Bookworm; smartair config uses port=0
     systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
     if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
-      log "dnsmasq is not active (DHCP may be missing) — often OK if you only need the Wi-Fi beacons. journal:"
-      journalctl -u dnsmasq -n 15 --no-pager 2>&1 | sed 's/^/  /' || true
+      log "ERROR: dnsmasq is not running — clients will not get an IP; Wi-Fi will show 'unable to connect' on many phones. journal:"
+      journalctl -u dnsmasq -n 25 --no-pager 2>&1 | sed 's/^/  /' || true
     fi
     if ! systemctl start hostapd 2>/dev/null; then
       log "systemctl start hostapd failed — will try hostapd -B if still down…"

@@ -78,12 +78,14 @@ sudo -E ./scripts/setup-wifi-ap.sh
 
 3. We only use **2.4 GHz** (`hw_mode=g`). On the phone, do not filter to **5 GHz only** when looking for the network. Move a little closer; output power is low.
 
-4. Force the **hostapd** path (skips `nmcli`):
+4. If the **SSID is visible** but the phone says **Unable to connect** (or spins then fails), the Wi-Fi layer may be up but **DHCP** is not: the Pi must have **192.168.4.1** (or your `HOTSPOT_STATIC`) on the AP interface, and **`dnsmasq` must be running** so clients get an IP. Run `verify-hotspot` and check **section 2b**. Re-run `./setuphotspot` after the script is updated, and make sure the **Wi-Fi password in the phone matches** `.hotspot.env` (regenerate the Wi-Fi QR with `./scripts/generate-demo-qrs.sh --detect` if you change it).
+
+5. Force the **hostapd** path (skips `nmcli`):
    ```bash
    HOTSPOT_USE_CLASSIC=1 ./setuphotspot
    ```
 
-5. If `hostapd` fails, read the end of: `journalctl -u hostapd -n 40`
+6. If `hostapd` fails, read the end of: `journalctl -u hostapd -n 40`
 
 ## If `nmcli hotspot` fails (common fix)
 

@@ -44,6 +44,26 @@ else
 fi
 
 echo ""
+echo "=== 2b) IP + DHCP (phones need an IP; without this you see 'Unable to connect') ==="
+PREFIX="${HOTSPOT_STATIC:-192.168.4}"
+if ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -qF "${PREFIX}.1/"; then
+  echo "OK: $AP_IFACE has ${PREFIX}.1/24 (or /…)"
+  ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | sed 's/^/  /'
+else
+  echo "PROBLEM: $AP_IFACE has no ${PREFIX}.1 — dnsmasq cannot serve DHCP; fix dhcpcd or re-run setup."
+  ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | sed 's/^/  /' || true
+fi
+if systemctl is-active --quiet dnsmasq 2>/dev/null; then
+  echo "dnsmasq: active (DHCP for clients OK)"
+else
+  if systemctl is-active --quiet hostapd 2>/dev/null; then
+    echo "PROBLEM: dnsmasq is not active but hostapd is — clients will not get an IP. journal: journalctl -u dnsmasq -n 20"
+  else
+    echo "dnsmasq: not active (see hostapd / NM path above)"
+  fi
+fi
+
+echo ""
 echo "=== 3) hostapd (if you use the classic / fallback stack) ==="
 if systemctl is-active --quiet hostapd 2>/dev/null; then
   echo "hostapd: active"
