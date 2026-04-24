@@ -11,6 +11,10 @@ From the project folder::
   .venv/bin/python3 run.py
 
 The page URL is printed on startup (default port 5001; set SMARTAIR_PORT to change it).
+
+BME680 / I2C check on the Pi::
+
+  python3 scripts/test_sensor.py
 """
 
 from app import run
