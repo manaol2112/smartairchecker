@@ -86,3 +86,7 @@ sensors:
   # "Unable to identify BME680 at 0x76 (IOError)", try 0 and run: i2cdetect -y 0  and  -y 1
   # Wiring + multimeter + ADDR/SDO: see docs/bme680-wiring.md
   i2c_bus: 1
+  # Seconds between reads. Use ~0.35 for a snappier live chart (e.g. breath demo).
+  poll_interval_seconds: 1.0
+  # IIR 0–7: lower = faster T/H response to sudden changes; 3 is calmer for long runs.
+  iir_filter_size: 3

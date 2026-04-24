@@ -80,7 +80,16 @@ def create_app() -> Flask:
 @app.route("/")
 def index() -> str:
     cfg = load_config()
-    return render_template("index.html", rooms=cfg.get("rooms", []))
+    sens = cfg.get("sensors", {})
+    poll = float(sens.get("poll_interval_seconds", 1.0))
+    poll = max(0.05, min(10.0, poll))
+    # Browser refresh: slightly faster than the sensor loop so the chart keeps up.
+    status_poll_ms = max(200, min(1000, int(poll * 1000 * 0.55)))
+    return render_template(
+        "index.html",
+        rooms=cfg.get("rooms", []),
+        status_poll_ms=status_poll_ms,
+    )
 
 
 @app.get("/api/status")
