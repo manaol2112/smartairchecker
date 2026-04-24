@@ -234,6 +234,9 @@
         border-radius: 18px;
         padding: 0.9rem 0.85rem 1rem;
         box-shadow: 0 2px 0 rgba(139, 92, 246, 0.15);
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
       .intro-section__h {
         font-family: var(--display);
@@ -512,6 +515,13 @@
         flex-direction: column;
         gap: 0.75rem;
         min-width: 0;
+        align-items: stretch;
+        width: 100%;
+      }
+      .intro-hero__aside .intro-bubble {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
       .intro-bubble {
         border-radius: 20px;
@@ -519,6 +529,7 @@
         border: 3px solid;
         box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
         transition: transform 0.15s ease;
+        text-align: left;
       }
       .intro-bubble:hover {
         transform: scale(1.02);
@@ -535,6 +546,36 @@
         background: linear-gradient(180deg, #ecfdf5 0%, #fff 55%);
         border-color: #34d399;
         box-shadow: 0 4px 0 #10b981;
+        text-align: left;
+      }
+      .intro-bubble--score .intro-bubble__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem 0.75rem;
+        margin: 0 0 0.45rem;
+        width: 100%;
+        text-align: left;
+      }
+      .intro-bubble--score .intro-bubble__head .intro-bubble__h {
+        flex: 0 1 auto;
+        margin: 0;
+        min-width: 0;
+        max-width: 100%;
+        text-align: left;
+      }
+      .intro-bubble--score .intro-aside__num {
+        flex: 0 0 auto;
+        display: inline-block;
+        margin: 0;
+        font-size: clamp(1rem, 1.8vw, 1.2rem);
+        line-height: 1.1;
+        padding: 0.2rem 0.45rem 0.22rem;
+        border-radius: 10px;
+        background: rgba(16, 185, 129, 0.18);
+        border: 2px solid rgba(5, 150, 105, 0.35);
+        white-space: nowrap;
       }
       .intro-bubble--led {
         background: linear-gradient(180deg, #fffbeb 0%, #fff 50%);
@@ -546,6 +587,7 @@
         font-size: 0.95rem;
         color: #166534;
         margin: 0 0 0.35rem;
+        text-align: left;
       }
       .intro-bubble--led .intro-bubble__h {
         color: #9a3412;
@@ -561,11 +603,8 @@
       }
       .intro-aside__num {
         font-family: var(--display);
-        font-size: clamp(1.8rem, 3.8vw, 2.35rem);
         font-weight: 800;
         color: #047857;
-        line-height: 1;
-        margin: 0 0 0.4rem;
       }
       .intro-bubble p {
         margin: 0;
@@ -1538,8 +1577,10 @@
                 </div>
               </div>
               <div class="intro-bubble intro-bubble--score">
-                <h3 class="intro-bubble__h">The air “game score”</h3>
-                <p class="intro-aside__num" aria-hidden="true">0 → 100</p>
+                <div class="intro-bubble__head">
+                  <h3 class="intro-bubble__h">The air “game score”</h3>
+                  <span class="intro-aside__num" aria-hidden="true">0 → 100</span>
+                </div>
                 <p>
                   A big number on the line = our <strong>air sniff</strong> looks “fresher” on
                   <strong>our 0–100 scale</strong>. It is <strong>one box in one spot</strong> at a time — a
