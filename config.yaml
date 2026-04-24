@@ -23,7 +23,8 @@ air_quality:
   use_relative_score: true
   baseline_ohms: 50000  # after burn-in, note typical resistance in a fresh room; tune this
 
-# How local clock time maps to “Morning / Lunch / Night” for the line chart
+# How local clock time maps to Morning / Lunch / Evening for charts and ranks
+# (“Evening” in the app = this night window)
 # (uses the Pi’s time zone; samples outside these windows are not counted on the graph).
 # Times are half-open: from_hour is included, to_hour is excluded. If from_hour > to_hour,
 # the range wraps (night example: 20 → 5 is 8pm–4:59am).
@@ -32,7 +33,8 @@ time_periods:
   labels:
     morning: "Morning"
     lunch: "Lunch"
-    night: "Night"
+    # Shown in charts, tables, and rankings (same time window as “night” below)
+    night: "Evening"
   morning:
     from_hour: 5
     to_hour: 12

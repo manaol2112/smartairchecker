@@ -1,12 +1,16 @@
 """Start the air-quality web app.
 
-From the project folder, use one of these (a bare ``run.sh`` or ``run.py`` will not work)::
+From the project folder::
 
   ./run
-  python3 run.py
-  ./run.sh
+  # On the Pi, first time: ./run  runs  scripts/pi-bootstrap.sh  (apt + venv + pip) if .venv
+  # is missing, then starts the app. You can re-run:  bash scripts/pi-bootstrap.sh
+  # Manual venv:  bash scripts/pi-bootstrap.sh  then  .venv/bin/python3 run.py
 
-The page URL is shown when the app starts (default port 5001; set SMARTAIR_PORT to change it).
+  ./run.sh
+  .venv/bin/python3 run.py
+
+The page URL is printed on startup (default port 5001; set SMARTAIR_PORT to change it).
 """
 
 from app import run

@@ -1,4 +1,5 @@
-# Raspberry Pi: pip3 install -r requirements.txt
+# Install with:  bash scripts/pi-bootstrap.sh   (recommended on Pi)
+# Or:  pip install -r requirements.txt   inside your venv
 bme680>=1.0.5
 flask>=3.0.0
 PyYAML>=6.0.1

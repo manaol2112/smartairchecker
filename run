@@ -3,6 +3,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 export PYTHONPATH="$ROOT"
+
+if [[ ! -x "$ROOT/.venv/bin/python3" ]]; then
+  echo ""
+  echo "  First run: no .venv found — running scripts/pi-bootstrap.sh"
+  echo "  (installs system packages on Debian/Raspberry Pi OS if needed, then pip dependencies)"
+  echo ""
+  bash "$ROOT/scripts/pi-bootstrap.sh"
+fi
+
 if [[ -x "$ROOT/.venv/bin/python3" ]]; then
   exec "$ROOT/.venv/bin/python3" "$ROOT/run.py" "$@"
 else
