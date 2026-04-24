@@ -24,6 +24,21 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+try:
+    import yaml  # noqa: F401
+except ImportError:  # pragma: no cover
+    print(
+        "\nError: no module named 'yaml' (PyYAML).\n\n"
+        "  Option A — use the project venv (recommended after ./run or pi-bootstrap.sh):\n"
+        f"    {_ROOT / '.venv' / 'bin' / 'python3'} scripts/test_sensor.py\n"
+        "    # or:  .venv/bin/pip install -r requirements.txt\n\n"
+        "  Option B — system Python:\n"
+        "    sudo apt update && sudo apt install -y python3-yaml\n"
+        "    # or:  python3 -m pip install --user PyYAML\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 
 def _line(char: str = "=", w: int = 64) -> None:
     print(char * w)

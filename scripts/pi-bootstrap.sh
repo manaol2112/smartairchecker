@@ -37,7 +37,8 @@ apt_install() {
     exit 1
   fi
 
-  local -a PKGS=(python3 python3-venv python3-pip i2c-tools)
+  # python3-yaml: so `import yaml` works for system python3, not only the venv
+  local -a PKGS=(python3 python3-venv python3-pip python3-yaml i2c-tools)
   if is_pi; then
     PKGS+=(python3-smbus)
     if apt-cache show python3-rpi-lgpio &>/dev/null; then
