@@ -21,7 +21,9 @@ air_quality:
   moderate_min: 10000
   # Relative score: blend gas vs baseline (0-100, higher = cleaner)
   use_relative_score: true
-  baseline_ohms: 50000  # after burn-in, note typical resistance in a fresh room; tune this
+  # Typical “clean room” gas resistance after burn-in; also used for the score until the
+  # hot gas reading is stable on first start (then real I2C values take over).
+  baseline_ohms: 50000
 
 # How local clock time maps to Morning / Lunch / Evening for charts and ranks
 # (“Evening” in the app = this night window)

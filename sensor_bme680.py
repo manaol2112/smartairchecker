@@ -24,19 +24,34 @@ class BME680Monitor:
         self._last: dict[str, Any] = {}
         self._sensor: Any = None
         self._dry = is_dry_run()
+        iq = self._cfg.get("air_quality", {})
+        # Used until the gas heater reports a stable reading (avoids a blank live UI for minutes)
+        self._last_gas: float = float(iq.get("baseline_ohms", 50_000))
 
     def _init_sensor(self) -> None:
         if self._dry:
             return
         import bme680 as bme
 
-        try:
-            s = bme.BME680(bme.I2C_ADDR_PRIMARY)
-        except (RuntimeError, OSError) as e:
+        addrs: list[int] = [bme.I2C_ADDR_PRIMARY, bme.I2C_ADDR_SECONDARY]
+        last_err: Exception | None = None
+        s = None
+        for addr in addrs:
+            try:
+                s = bme.BME680(addr)
+                logger.info("BME680 opened on I2C 0x%02x (SDA/SCL, 3.3V, GND)", addr)
+                break
+            except (RuntimeError, OSError) as e:
+                last_err = e
+                logger.debug("BME680 not at 0x%02x: %s", addr, e)
+        if s is None:
+            assert last_err is not None
             raise RuntimeError(
-                "Could not open BME680 on I2C. Run: sudo raspi-config → Interface Options → I2C → Enable, "
-                "and check wiring (SDA/SCL) and 3.3V."
-            ) from e
+                "Could not open BME680 on I2C (tried 0x76 and 0x77). "
+                "Enable I2C (sudo raspi-config → Interface Options → I2C), "
+                "add user to the i2c group, and check SDA/SCL and 3.3V. "
+                "Run:  sudo i2cdetect -y 1  (or bus 0 on older Pis)."
+            ) from last_err
         s.set_humidity_oversample(bme.OS_2X)
         s.set_pressure_oversample(bme.OS_4X)
         s.set_temperature_oversample(bme.OS_8X)
@@ -78,14 +93,22 @@ class BME680Monitor:
             else:
                 assert self._sensor is not None
                 s = self._sensor
-                if s.get_sensor_data() and s.data.heat_stable:
-                    temp = s.data.temperature
-                    hum = s.data.humidity
-                    pres = s.data.pressure
-                    gas_ohms = s.data.gas_resistance
-                else:
+                if not s.get_sensor_data():
                     time.sleep(0.1)
                     continue
+                d = s.data
+                temp = d.temperature
+                hum = d.humidity
+                pres = d.pressure
+                # Gas resistance is only reliable once the hot plate has stabilized. If we
+                # waited only for that, the web UI would stay empty for a long time.
+                heat_ok = bool(getattr(d, "heat_stable", True))
+                gr = getattr(d, "gas_resistance", None)
+                if heat_ok and gr is not None and float(gr) > 0:
+                    self._last_gas = float(gr)
+                gas_ohms = max(float(self._last_gas), min_ohms)
+                # True once the gas heater reports a new valid resistance (not just T/H/P).
+                gas_stabilized = heat_ok
 
             result: AirQualityResult = evaluate_air_quality(
                 gas_ohms=gas_ohms,
@@ -95,16 +118,19 @@ class BME680Monitor:
                 baseline_ohms=baseline,
                 use_relative_score=use_rel,
             )
+            snap: dict[str, Any] = {
+                "temperature_c": round(temp, 2),
+                "humidity_percent": round(hum, 2),
+                "pressure_hpa": round(pres, 2),
+                "gas_ohms": round(gas_ohms, 1),
+                "quality": result.label,
+                "score": result.score_0_100,
+                "ts": time.time(),
+            }
+            if not self._dry:
+                snap["gas_stabilized"] = gas_stabilized
             with self._lock:
-                self._last = {
-                    "temperature_c": round(temp, 2),
-                    "humidity_percent": round(hum, 2),
-                    "pressure_hpa": round(pres, 2),
-                    "gas_ohms": round(gas_ohms, 1),
-                    "quality": result.label,
-                    "score": result.score_0_100,
-                    "ts": time.time(),
-                }
+                self._last = snap
             time.sleep(1.0)
 
     def uses_synthetic(self) -> bool:
