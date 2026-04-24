@@ -1,6 +1,9 @@
 # Install everything (OS + venv + pip):  ./fix-dependencies.sh  (or ./pi-bootstrap.sh)
-# Or:  pip install -r requirements.txt   inside your venv
-bme680>=1.0.5
+# Or:  .venv/bin/python3 -m pip install -r requirements.txt
+#
+# Pin bme680 to 1.x: v2+ pulls smbus2 from PyPI and is stricter; 1.x works with
+# system python3-smbus when the venv uses --system-site-packages (see pi-bootstrap).
+bme680>=1.0.5,<2.0.0
 flask>=3.0.0
 PyYAML>=6.0.1
 gpiozero>=2.0

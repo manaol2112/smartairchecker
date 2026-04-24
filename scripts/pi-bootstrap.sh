@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # First-time and repeat dependency setup (safe to run more than once).
 # From the project root:  ./pi-bootstrap.sh  OR  bash scripts/pi-bootstrap.sh
+# Optional:  FORCE_RECREATE_VENV=1  ./fix-dependencies.sh  (nukes .venv, fixes bad installs)
 # On Raspberry Pi, creates .venv with --system-site-packages so the BME680
 # I2C library can use the OS smbus module (from the python3-smbus package).
 
@@ -103,36 +104,54 @@ if is_pi; then
   fi
 fi
 
+if [[ "${FORCE_RECREATE_VENV:-0}" == "1" ]]; then
+  log "FORCE_RECREATE_VENV=1 — removing old $VENV"
+  rm -rf "$VENV"
+fi
 if [[ ! -d "$VENV" ]]; then
   log "Creating virtual environment: $VENV"
   $PYTHON -m venv "$VENV" "${VENV_FLAGS[@]}"
 fi
 
-# shellcheck source=/dev/null
-source "$VENV/bin/activate"
-log "Upgrading pip…"
-pip install -U pip setuptools wheel
+# Always use the venv interpreter so packages land in .venv (not system Python).
+PY="$VENV/bin/python3"
+if [[ ! -x "$PY" ]]; then
+  log "Error: $PY missing after venv create."
+  exit 1
+fi
+
+log "Upgrading pip in venv (using $PY -m pip)…"
+"$PY" -m pip install -U pip setuptools wheel
 log "Installing Python dependencies from requirements.txt…"
-pip install -r requirements.txt
+"$PY" -m pip install -r requirements.txt
 
 verify_imports() {
-  "$VENV/bin/python3" -c "import yaml; import bme680; import flask; import gpiozero" 2>/dev/null
+  "$PY" -c "import yaml; import bme680; import flask; import gpiozero" 2>/dev/null
 }
 
 if verify_imports; then
   log "Verified: import yaml, bme680, flask, gpiozero — OK"
 else
   log "Some imports failed; re-running pip with --no-cache-dir…"
-  pip install --no-cache-dir -U pip setuptools wheel
-  pip install --no-cache-dir -r requirements.txt
+  "$PY" -m pip install --no-cache-dir -U pip setuptools wheel
+  "$PY" -m pip install --no-cache-dir -r requirements.txt
 fi
 
 if ! verify_imports; then
-  log "Retrying with explicit PyPI names (bme680, PyYAML, flask, gpiozero)…"
-  pip install --no-cache-dir "bme680>=1.0.5" "PyYAML>=6.0.1" "flask>=3.0" "gpiozero>=2.0" || true
+  log "Retrying with explicit package pins and smbus2 (for bme680 2.x if you upgrade later)…"
+  if ! "$PY" -m pip install --no-cache-dir \
+    "bme680>=1.0.5,<2.0.0" "PyYAML>=6.0.1" "flask>=3.0" "gpiozero>=2.0" "smbus2" 2>&1; then
+    log "That pip run reported errors; see above."
+  fi
 fi
 
 if ! verify_imports; then
+  log "If you still see errors, recreating the venv may help (deletes $VENV):"
+  echo "    rm -rf .venv && ./fix-dependencies.sh" >&2
+  echo "" >&2
+  log "Installed versions (for debugging):"
+  "$PY" -m pip show bme680 PyYAML 2>&1 | sed 's/^/  /' || true
+  "$PY" -m pip list 2>&1 | grep -i -E 'bme|smbus|flask|yaml|gpio' | sed 's/^/  /' || true
   echo "" >&2
   log "ERROR: Still cannot import bme680 / yaml / flask / gpiozero in $VENV"
   echo "--------------------------------------------------------------------------------" >&2
@@ -140,7 +159,7 @@ if ! verify_imports; then
   echo "  Then run:  ./fix-dependencies.sh" >&2
   echo "  Start the app with:  ./run  (not plain: python3 run.py) " >&2
   echo "--------------------------------------------------------------------------------" >&2
-  "$VENV/bin/python3" -c "import yaml; import bme680; import flask; import gpiozero" 2>&1 || true
+  "$PY" -c "import yaml; import bme680; import flask; import gpiozero" 2>&1 || true
   exit 1
 fi
 
