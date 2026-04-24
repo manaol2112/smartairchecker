@@ -208,6 +208,107 @@
         position: relative;
         z-index: 1;
         padding: clamp(1.4rem, 3vw, 2rem) clamp(1.1rem, 2.2vw, 1.75rem) clamp(1.4rem, 2.2vw, 1.9rem);
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .intro-hero__top {
+        margin-bottom: 0.35rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px dashed rgba(124, 58, 237, 0.2);
+      }
+      .intro-hero__split {
+        display: grid;
+        gap: 1rem 1.35rem;
+        align-items: start;
+        margin: 0.35rem 0 0;
+      }
+      @media (min-width: 800px) {
+        .intro-hero__split {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        }
+      }
+      .intro-hero__measure {
+        background: rgba(255, 255, 255, 0.45);
+        border: 2px solid rgba(167, 139, 250, 0.45);
+        border-radius: 18px;
+        padding: 0.9rem 0.85rem 1rem;
+        box-shadow: 0 2px 0 rgba(139, 92, 246, 0.15);
+      }
+      .intro-section__h {
+        font-family: var(--display);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #6d28d9;
+        margin: 0 0 0.55rem;
+        text-align: center;
+      }
+      @media (min-width: 800px) {
+        .intro-section__h {
+          text-align: left;
+        }
+      }
+      .intro-hero__play {
+        margin: 1.1rem 0 0;
+      }
+      .intro-trivia-outer {
+        margin: 0.9rem 0 0;
+        border-radius: 20px;
+        border: 3px solid #a5b4fc;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(238, 242, 255, 0.85) 100%);
+        box-shadow: 0 3px 0 #818cf8;
+        overflow: hidden;
+      }
+      .intro-trivia-outer > summary {
+        list-style: none;
+        font-family: var(--display);
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #312e81;
+        padding: 0.75rem 1rem 0.8rem 2.35rem;
+        cursor: pointer;
+        position: relative;
+        user-select: none;
+        line-height: 1.35;
+      }
+      .intro-trivia-outer > summary::-webkit-details-marker {
+        display: none;
+      }
+      .intro-trivia-outer > summary::before {
+        content: "▶";
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%) rotate(0deg);
+        font-size: 0.68rem;
+        color: #4f46e5;
+        transition: transform 0.2s ease;
+      }
+      .intro-trivia-outer[open] > summary::before {
+        transform: translateY(-50%) rotate(90deg);
+      }
+      .intro-trivia-outer > summary:hover {
+        background: linear-gradient(90deg, #eef2ff, #f5f3ff);
+      }
+      .intro-trivia-outer__lead {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #5b21b6;
+        margin-top: 0.2rem;
+      }
+      .intro-trivia-outer .intro-curious {
+        margin: 0;
+        max-width: none;
+        padding: 0.35rem 0.6rem 0.85rem;
+        border-top: 2px dashed #c7d2fe;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .intro-trivia-outer > summary::before {
+          transition: none;
+        }
       }
       .intro-ribbon {
         display: flex;
@@ -221,17 +322,6 @@
         color: #86198f;
         margin: 0 0 1rem;
         text-align: center;
-      }
-      .intro-hero__grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1.35rem 1.5rem;
-        align-items: start;
-      }
-      @media (min-width: 860px) {
-        .intro-hero__grid {
-          grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-        }
       }
       .intro-kid-kicker {
         font-family: var(--display);
@@ -269,9 +359,14 @@
         flex-wrap: wrap;
         justify-content: center;
         gap: 0.4rem 0.5rem;
-        margin: 0.75rem 0 0;
+        margin: 0;
         list-style: none;
         padding: 0;
+      }
+      @media (min-width: 800px) {
+        .intro-hero__measure .intro-badges {
+          justify-content: flex-start;
+        }
       }
       .intro-badges li {
         display: inline-flex;
@@ -306,6 +401,17 @@
         color: #0c4a6e;
         margin: 0 0 0.6rem;
         text-align: center;
+      }
+      .u-visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
       .intro-curious__hint {
         font-size: 0.82rem;
@@ -489,7 +595,7 @@
         background: #fb7185;
       }
       .intro-try {
-        margin-top: 1.15rem;
+        margin-top: 0;
         padding: 0.9rem 0.75rem 1rem;
         background: linear-gradient(135deg, #dbeafe, #fae8ff, #ffedd5);
         border-radius: 18px;
@@ -1361,83 +1467,34 @@
           <span class="science-floater sf10">📐</span>
         </div>
         <div class="intro-hero__inner">
-          <p class="intro-ribbon">🌈 Searles Elementary — science fair · let’s explore the air!</p>
-          <p class="intro-kid-kicker">🔭 The big question</p>
-          <h1 class="intro-title" id="intro-heading">
-            Which room has the nicest-feeling air on our sensor — and does it change from morning to
-            lunch to evening?
-          </h1>
-          <p class="intro-lead-kid">
-            We use a tiny <strong>air chip</strong> (BME680) and a <strong>Raspberry Pi</strong> to turn
-            invisible air stuff into a <strong>0–100 game score</strong> on this page. The labels and
-            math are <strong>our project’s</strong> — and the hardware is real! Move the box,
-            <strong>pick the room</strong> down below, and the clock says if it is morning, lunch, or
-            evening.
-          </p>
-          <ul class="intro-badges" role="list" aria-label="What the gizmo measures">
-            <li>🌡️ warm / cool</li>
-            <li>💧 water in the air</li>
-            <li>🫧 a “gas sniff” air signal</li>
-            <li>⏱️ saved for graphs</li>
-          </ul>
-          <p class="intro-byline">✨ Project by Sophia Merce G. Manaol</p>
-          <div class="intro-curious" aria-label="Air trivia and fun facts">
-            <h2 class="intro-curious__h">🌬️ Air trivia — open a card (tap the arrow!)</h2>
-            <p class="intro-curious__hint">Short facts you can use for a report or to show your family.</p>
-            <details class="curious-card">
-              <summary>One breath is packed with water you can’t see</summary>
-              <p>
-                Warm exhaled air holds lots of <strong>water vapor</strong>. Breathe near the box
-                (gently) and the <strong>humidity</strong> number can jump — same idea as a foggy
-                bathroom mirror after a hot shower, just measured by our chip.
-              </p>
-            </details>
-            <details class="curious-card">
-              <summary>What is the “air sniff” (gas) number?</summary>
-              <p>
-                The BME680 has a <strong>tiny hot plate</strong> inside. It “asks” the air a chemistry
-                question and we show the answer in <strong>kΩ (kiloohms)</strong>. A bigger kΩ on our page
-                often means the air looks <strong>fresher in our project’s math</strong> after the heater
-                has settled — it is not a super-nose, it is a resistance reading!
-              </p>
-            </details>
-            <details class="curious-card">
-              <summary>Why should you pick the right room in the list?</summary>
-              <p>
-                A kitchen, a bedroom, and a yard are not the same: different warmth, different moisture, and
-                different “bits” in the air. Telling the page <strong>where the box is</strong> helps the
-                graph tell the <strong>truth</strong> when you compare morning, lunch, and evening in each
-                space.
-              </p>
-            </details>
-            <details class="curious-teacher">
-              <summary>For teachers &amp; parents — one technical line</summary>
-              <p>
-                Score: linear map of BME680 gas resistance per air_quality in config.yaml; labels use
-                good_min / moderate_min; room changes gate logs so rows match the space.
-              </p>
-            </details>
+          <div class="intro-hero__top">
+            <p class="intro-ribbon">🌈 Searles Elementary — science fair · let’s explore the air!</p>
+            <p class="intro-kid-kicker">🔭 The big question</p>
+            <h1 class="intro-title" id="intro-heading">
+              Which room has the nicest-feeling air on our sensor — and does it change from morning to
+              lunch to evening?
+            </h1>
+            <p class="intro-lead-kid">
+              We use a tiny <strong>air chip</strong> (BME680) and a <strong>Raspberry Pi</strong> to turn
+              invisible air stuff into a <strong>0–100 game score</strong> on this page. The labels and
+              math are <strong>our project’s</strong> — and the hardware is real! Move the box,
+              <strong>pick the room</strong> down below, and the clock says if it is morning, lunch, or
+              evening.
+            </p>
+            <p class="intro-byline">✨ Project by Sophia Merce G. Manaol</p>
           </div>
-          <div class="intro-hero__grid">
-            <div class="intro-try" role="group" aria-label="Quick ideas to play with the experiment">
-              <h2 class="intro-try__h">🎮 Three ways to play with it</h2>
-              <div class="intro-pills">
-                <p class="intro-pill">
-                  <strong>Room picker</strong>
-                  Every time the box moves, choose the <strong>new room</strong> so the graph tells the
-                  truth.
-                </p>
-                <p class="intro-pill">
-                  <strong>Breath &amp; mist</strong>
-                  A tiny whoosh of breath (gentle!) can make <strong>humidity</strong> jump on purpose.
-                </p>
-                <p class="intro-pill">
-                  <strong>Number tiles</strong>
-                  Under the live air score, <strong>tap</strong> each square — surprise facts pop out.
-                </p>
-              </div>
+          <div class="intro-hero__split">
+            <div class="intro-hero__measure">
+              <h2 class="intro-section__h" id="measure-heading">What the sensor tracks</h2>
+              <ul class="intro-badges" role="list" aria-labelledby="measure-heading">
+                <li>🌡️ warm / cool</li>
+                <li>💧 water in the air</li>
+                <li>🫧 a “gas sniff” air signal</li>
+                <li>⏱️ saved for graphs</li>
+              </ul>
             </div>
-            <aside class="intro-hero__aside" aria-label="Score and light legend">
+            <aside class="intro-hero__aside" aria-labelledby="legend-heading">
+              <h2 class="u-visually-hidden" id="legend-heading">How to read the score and lights on the build</h2>
               <div class="intro-bubble intro-bubble--score">
                 <h3 class="intro-bubble__h">The air “game score”</h3>
                 <p class="intro-aside__num" aria-hidden="true">0 → 100</p>
@@ -1464,6 +1521,69 @@
               </div>
             </aside>
           </div>
+          <div class="intro-hero__play" id="play-ideas">
+            <div class="intro-try" role="group" aria-labelledby="play-ideas-h">
+              <h2 class="intro-try__h" id="play-ideas-h">🎮 Three ways to play with it</h2>
+              <div class="intro-pills">
+                <p class="intro-pill">
+                  <strong>Room picker</strong>
+                  Every time the box moves, choose the <strong>new room</strong> so the graph tells the
+                  truth.
+                </p>
+                <p class="intro-pill">
+                  <strong>Breath &amp; mist</strong>
+                  A tiny whoosh of breath (gentle!) can make <strong>humidity</strong> jump on purpose.
+                </p>
+                <p class="intro-pill">
+                  <strong>Number tiles</strong>
+                  Under the live air score, <strong>tap</strong> each square — surprise facts pop out.
+                </p>
+              </div>
+            </div>
+          </div>
+          <details class="intro-trivia-outer" id="air-trivia">
+            <summary>
+              🌬️&nbsp;Air trivia — 3 fun facts
+              <span class="intro-trivia-outer__lead">(tap to open; optional for your report!)</span>
+            </summary>
+            <div class="intro-curious" role="group" aria-labelledby="air-trivia-main-h">
+              <h2 class="u-visually-hidden" id="air-trivia-main-h">Air trivia and fun facts</h2>
+              <p class="intro-curious__hint">Open any card for a short read.</p>
+              <details class="curious-card">
+                <summary>One breath is packed with water you can’t see</summary>
+                <p>
+                  Warm exhaled air holds lots of <strong>water vapor</strong>. Breathe near the box
+                  (gently) and the <strong>humidity</strong> number can jump — same idea as a foggy
+                  bathroom mirror after a hot shower, just measured by our chip.
+                </p>
+              </details>
+              <details class="curious-card">
+                <summary>What is the “air sniff” (gas) number?</summary>
+                <p>
+                  The BME680 has a <strong>tiny hot plate</strong> inside. It “asks” the air a chemistry
+                  question and we show the answer in <strong>kΩ (kiloohms)</strong>. A bigger kΩ on our page
+                  often means the air looks <strong>fresher in our project’s math</strong> after the heater
+                  has settled — it is not a super-nose, it is a resistance reading!
+                </p>
+              </details>
+              <details class="curious-card">
+                <summary>Why should you pick the right room in the list?</summary>
+                <p>
+                  A kitchen, a bedroom, and a yard are not the same: different warmth, different moisture, and
+                  different “bits” in the air. Telling the page <strong>where the box is</strong> helps the
+                  graph tell the <strong>truth</strong> when you compare morning, lunch, and evening in each
+                  space.
+                </p>
+              </details>
+              <details class="curious-teacher">
+                <summary>For teachers &amp; parents — one technical line</summary>
+                <p>
+                  Score: linear map of BME680 gas resistance per air_quality in config.yaml; labels use
+                  good_min / moderate_min; room changes gate logs so rows match the space.
+                </p>
+              </details>
+            </div>
+          </details>
         </div>
       </header>
 
