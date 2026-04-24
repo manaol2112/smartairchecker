@@ -1369,10 +1369,10 @@
           </h1>
           <p class="intro-lead-kid">
             We use a tiny <strong>air chip</strong> (BME680) and a <strong>Raspberry Pi</strong> to turn
-            invisible air stuff into a <strong>0–100 game score</strong> on this page. It is
-            <strong>our experiment’s rules</strong>, not a government website — but it is real
-            hardware! Move the box, <strong>pick the room</strong> down below, and the clock says if it is
-            morning, lunch, or evening.
+            invisible air stuff into a <strong>0–100 game score</strong> on this page. The labels and
+            math are <strong>our project’s</strong> — and the hardware is real! Move the box,
+            <strong>pick the room</strong> down below, and the clock says if it is morning, lunch, or
+            evening.
           </p>
           <ul class="intro-badges" role="list" aria-label="What the gizmo measures">
             <li>🌡️ warm / cool</li>
@@ -1381,34 +1381,37 @@
             <li>⏱️ saved for graphs</li>
           </ul>
           <p class="intro-byline">✨ Project by Sophia Merce G. Manaol</p>
-          <div class="intro-curious" aria-label="Curiosity corner">
-            <h2 class="intro-curious__h">🤔 Curious? Open any card (tap the arrow!)</h2>
-            <p class="intro-curious__hint">The answers are short — you can’t break anything by looking.</p>
+          <div class="intro-curious" aria-label="Air trivia and fun facts">
+            <h2 class="intro-curious__h">🌬️ Air trivia — open a card (tap the arrow!)</h2>
+            <p class="intro-curious__hint">Short facts you can use for a report or to show your family.</p>
             <details class="curious-card">
-              <summary>What is the 0 to 100 number?</summary>
+              <summary>One breath is packed with water you can’t see</summary>
               <p>
-                It is a line we draw in software from the sensor’s
-                <strong>gas</strong> reading (bigger “gas” ohms in our model usually land higher on
-                the 0–100 line). Bigger = “happier on our scale,” not a doctor’s test.
+                Warm exhaled air holds lots of <strong>water vapor</strong>. Breathe near the box
+                (gently) and the <strong>humidity</strong> number can jump — same idea as a foggy
+                bathroom mirror after a hot shower, just measured by our chip.
               </p>
             </details>
             <details class="curious-card">
-              <summary>Do the colored lights on the box match the website?</summary>
+              <summary>What is the “air sniff” (gas) number?</summary>
               <p>
-                Yes! Green, yellow, and red on the build line up with the
-                <strong>good / okay / yikes</strong> ideas we coded — same story in two places.
+                The BME680 has a <strong>tiny hot plate</strong> inside. It “asks” the air a chemistry
+                question and we show the answer in <strong>kΩ (kiloohms)</strong>. A bigger kΩ on our page
+                often means the air looks <strong>fresher in our project’s math</strong> after the heater
+                has settled — it is not a super-nose, it is a resistance reading!
               </p>
             </details>
             <details class="curious-card">
-              <summary>What should I try first?</summary>
+              <summary>Why should you pick the right room in the list?</summary>
               <p>
-                Change the <strong>room</strong> when the Pi moves, then scroll to
-                <strong>Air score</strong> and watch the wiggly line. Tap the four number tiles to see
-                what each one is!
+                A kitchen, a bedroom, and a yard are not the same: different warmth, different moisture, and
+                different “bits” in the air. Telling the page <strong>where the box is</strong> helps the
+                graph tell the <strong>truth</strong> when you compare morning, lunch, and evening in each
+                space.
               </p>
             </details>
             <details class="curious-teacher">
-              <summary>For teachers / parents — one technical sentence</summary>
+              <summary>For teachers &amp; parents — one technical line</summary>
               <p>
                 Score: linear map of BME680 gas resistance per air_quality in config.yaml; labels use
                 good_min / moderate_min; room changes gate logs so rows match the space.
@@ -1438,7 +1441,11 @@
               <div class="intro-bubble intro-bubble--score">
                 <h3 class="intro-bubble__h">The air “game score”</h3>
                 <p class="intro-aside__num" aria-hidden="true">0 → 100</p>
-                <p>Big number on our line = the sensor’s gas story looks “fresher” for how we set the math in the project — still one chip in one home, not a law.</p>
+                <p>
+                  Big number on the line = the sensor’s gas story looks “fresher” on
+                  <strong>our 0–100 scale</strong>. It is <strong>one small chip in one place</strong> at
+                  a time — a live snapshot, not a whole-building lab.
+                </p>
               </div>
               <div class="intro-bubble intro-bubble--led">
                 <h3 class="intro-bubble__h">🚦 What the three lights say</h3>
