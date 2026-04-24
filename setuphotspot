@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# One-command hotspot setup (run on the Raspberry Pi, from the project root):
+#   ./setuphotspot
+# Creates .hotspot.env from scripts/hotspot.env.example the first time, then
+# runs scripts/setup-wifi-ap.sh with sudo (apt installs, NetworkManager or hostapd).
+# See: docs/pi-wifi-hotspot.md
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+EXAMPLE="$ROOT/scripts/hotspot.env.example"
+ENVF="${HOTSPOT_ENV:-$ROOT/.hotspot.env}"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  echo "Usage: $0"
+  echo "  Prepares .hotspot.env (from scripts/hotspot.env.example on first run),"
+  echo "  installs hostapd, dnsmasq, qrencode (if apt is available), and turns the Pi"
+  echo "  into a Wi-Fi hotspot. Requires sudo; you will be asked for a password if needed."
+  echo ""
+  echo "Optional: edit $ROOT/.hotspot.env for SSID, password, country code."
+  echo "Then generate QR images:  ./scripts/generate-demo-qrs.sh --detect"
+  exit 0
+fi
+
+if command -v apt-get &>/dev/null; then
+  if [[ -f /proc/device-tree/model ]] && ! grep -qi Raspberry /proc/device-tree/model; then
+    echo "[setuphotspot] Note: this image does not look like a Raspberry Pi; continuing anyway…"
+  fi
+else
+  echo "[setuphotspot] No apt-get — install hostapd, dnsmasq, and qrencode yourself, then run:"
+  echo "  sudo -E $ROOT/scripts/setup-wifi-ap.sh"
+  exit 1
+fi
+
+if [[ ! -f "$EXAMPLE" ]]; then
+  echo "Missing $EXAMPLE — are you in the smartairchecker repo root?" >&2
+  exit 1
+fi
+
+if [[ ! -f "$ENVF" ]]; then
+  cp "$EXAMPLE" "$ENVF"
+  # Ensure owner is the user who invoked (not root), when sudo
+  if [[ -n "${SUDO_UID:-}" ]]; then
+    chown "$SUDO_UID:${SUDO_GID:-$SUDO_UID}" "$ENVF" 2>/dev/null || true
+  elif [[ -n "${USER:-}" && $(id -u) -ne 0 ]]; then
+    chown "$USER": "$(id -gn "$USER" 2>/dev/null || echo users)" "$ENVF" 2>/dev/null || true
+  fi
+  echo "[setuphotspot] Created $ENVF — you can edit SSID/password, or keep the example values."
+fi
+
+# shellcheck source=/dev/null
+set -a
+source "$ENVF"
+set +a
+SMARTAIR_AP_PASS="${SMARTAIR_AP_PASS:-}"
+if [[ ${#SMARTAIR_AP_PASS} -lt 8 ]]; then
+  echo "[setuphotspot] SMARTAIR_AP_PASS in .hotspot.env must be at least 8 characters. Edit: $ENVF" >&2
+  exit 1
+fi
+
+if [[ $(id -u) -eq 0 ]]; then
+  exec env HOTSPOT_ENV="$ENVF" bash "$ROOT/scripts/setup-wifi-ap.sh"
+else
+  exec sudo -E env HOTSPOT_ENV="$ENVF" bash "$ROOT/scripts/setup-wifi-ap.sh"
+fi

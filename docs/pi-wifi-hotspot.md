@@ -17,28 +17,33 @@ You cannot have **one** QR that both auto-connects *and* opens your site in a re
 | `scripts/setup-wifi-ap.sh` | On the Pi, installs/configures a hotspot. Prefers **NetworkManager** + `nmcli` when available (typical on Raspberry Pi OS **Bookworm desktop**). Otherwise uses **hostapd + dnsmasq** and static `192.168.4.1/24` (typical on **Lite** or if NM is off). |
 | `scripts/generate-demo-qrs.sh` | Creates `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` plus a small text file with the URL. |
 
-## Quick start (on the Pi)
+## One command (on the Pi)
 
-1. **Copy and edit** environment file:
+From the project root (clone or copy of this repo on the Pi):
 
-   ```bash
-   cd /path/to/smartairchecker
-   cp scripts/hotspot.env.example .hotspot.env
-   nano .hotspot.env
-   ```
+```bash
+cd /path/to/smartairchecker
+chmod +x setuphotspot
+./setuphotspot
+```
 
-   Set at least `SMARTAIR_AP_SSID`, `SMARTAIR_AP_PASS` (8+ characters), and `WIFI_COUNTRY` (e.g. `US`).
+The first time, this **creates `.hotspot.env`** from `scripts/hotspot.env.example`, **installs** `hostapd`, `dnsmasq`, and `qrencode` (via `apt`), then configures the hotspot. It will **ask for your sudo password** if needed.  
+Optionally **edit `.hotspot.env`** first (or after) to set `SMARTAIR_AP_SSID`, `SMARTAIR_AP_PASS` (8+ characters), and `WIFI_COUNTRY` (e.g. `US`).
 
-2. **Run the hotspot setup** (needs root):
+Same thing without the wrapper:
 
-   ```bash
-   sudo -E ./scripts/setup-wifi-ap.sh
-   ```
+```bash
+sudo -E ./scripts/setup-wifi-ap.sh
+```
 
-   - If the script used **NetworkManager**, the access point often gets something like `10.42.0.1` on `wlan0`.
-   - If it used **hostapd**, the Pi is usually `192.168.4.1`.
+## What happens to the IP address
 
-3. **Start your project** bound to all interfaces (default in `app.py` is `0.0.0.0`):
+- If the script used **NetworkManager**, the access point often gets something like **10.42.0.1** on `wlan0`.
+- If it used **hostapd**, the Pi is usually **192.168.4.1**.
+
+## After setup
+
+1. **Start your project** bound to all interfaces (default in `app.py` is `0.0.0.0`):
 
    ```bash
    export SMARTAIR_PORT=5001
@@ -47,7 +52,7 @@ You cannot have **one** QR that both auto-connects *and* opens your site in a re
 
    (Or the same `SMARTAIR_PORT` as in `.hotspot.env`.)
 
-4. **Generate the two QR images** (after the hotspot is up so `--detect` can read the IP):
+2. **Generate the two QR images** (after the hotspot is up so `--detect` can read the IP):
 
    ```bash
    ./scripts/generate-demo-qrs.sh --detect
@@ -55,7 +60,7 @@ You cannot have **one** QR that both auto-connects *and* opens your site in a re
 
    Or set the IP by hand: `AP_IP=10.42.0.1 ./scripts/generate-demo-qrs.sh`
 
-5. **Print** `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` (or show them on a monitor next to the Pi). Put **Wi-Fi** first, **URL** second on the handout.
+3. **Print** `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` (or show them on a monitor next to the Pi). Put **Wi-Fi** first, **URL** second on the handout.
 
 ## If `nmcli` is not used (hostapd path)
 
@@ -66,7 +71,8 @@ You cannot have **one** QR that both auto-connects *and* opens your site in a re
 ## Force the classic (hostapd) stack
 
 ```bash
-sudo HOTSPOT_USE_CLASSIC=1 -E ./scripts/setup-wifi-ap.sh
+HOTSPOT_USE_CLASSIC=1 ./setuphotspot
+# or: sudo HOTSPOT_USE_CLASSIC=1 -E ./scripts/setup-wifi-ap.sh
 ```
 
 (Use this only if you know you need it—NM is usually easier on Bookworm desktop.)

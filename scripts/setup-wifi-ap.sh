@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Turn a Raspberry Pi into a Wi-Fi access point for an offline class demo, so phones
-# can connect and browse the Flask app. Run ON THE PI, from the project root, with sudo:
-#   cp scripts/hotspot.env.example .hotspot.env   # then edit
-#   sudo -E ./scripts/setup-wifi-ap.sh
-# Or pass env:  sudo SMARTAIR_AP_SSID=... SMARTAIR_AP_PASS=... ./scripts/setup-wifi-ap.sh
+# can connect and browse the Flask app. Run ON THE PI, from the project root:
+#   ./setuphotspot
+# Or: sudo -E ./scripts/setup-wifi-ap.sh
+# (after copying scripts/hotspot.env.example to .hotspot.env if you do not use setuphotspot)
 #
 # This script:
 #  - Prefers NetworkManager (nmcli) when it is the active service (common on Pi OS Bookworm desktop).
