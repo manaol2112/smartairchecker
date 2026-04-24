@@ -62,6 +62,29 @@ sudo -E ./scripts/setup-wifi-ap.sh
 
 3. **Print** `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` (or show them on a monitor next to the Pi). Put **Wi-Fi** first, **URL** second on the handout.
 
+## “Done” but my phone does not see the Wi-Fi name
+
+1. On the Pi run:
+   ```bash
+   sudo ./scripts/verify-hotspot.sh
+   ```
+   You want **`type AP`** in the `iw dev wlan0 info` line. If the interface is not in **AP** mode, the SSID will not show up in scans.
+
+2. The Raspberry Pi’s **on-board Wi-Fi** is sometimes unreliable in access-point mode (driver / firmware). If verify looks wrong, try a ** USB Wi-Fi dongle** and set in `.hotspot.env`:
+   ```text
+   AP_IFACE=wlan1
+   ```
+   (Use `ip -br link` to see the name: often `wlx…` for USB; `wlan1` is common.)
+
+3. We only use **2.4 GHz** (`hw_mode=g`). On the phone, do not filter to **5 GHz only** when looking for the network. Move a little closer; output power is low.
+
+4. Force the **hostapd** path (skips `nmcli`):
+   ```bash
+   HOTSPOT_USE_CLASSIC=1 ./setuphotspot
+   ```
+
+5. If `hostapd` fails, read the end of: `journalctl -u hostapd -n 40`
+
 ## If `nmcli hotspot` fails (common fix)
 
 `nmcli` often fails if **something else is still using the Wi-Fi** (saved home network, an old `Hotspot` profile, or the wrong device name). The `setup` script now:

@@ -29,6 +29,8 @@ SMARTAIR_AP_SSID="${SMARTAIR_AP_SSID:-SmartAirDemo}"
 SMARTAIR_AP_PASS="${SMARTAIR_AP_PASS:-changeMe99}"
 WIFI_COUNTRY="${WIFI_COUNTRY:-US}"
 AP_IFACE="${AP_IFACE:-wlan0}"
+# 2.4 GHz channel; 1 is widely compatible. Override with AP_CHANNEL=6 in .hotspot.env
+AP_CHANNEL="${AP_CHANNEL:-1}"
 SMARTAIR_PORT="${SMARTAIR_PORT:-5001}"
 CON_NAME="${HOTSPOT_NM_CON_NAME:-SmartAir-AP}"
 STATIC_PREFIX="${HOTSPOT_STATIC:-192.168.4}"
@@ -45,6 +47,20 @@ if ((${#SMARTAIR_AP_PASS} < 8)); then
 fi
 
 require_bin() { command -v "$1" &>/dev/null; }
+
+if ! ip link show "$AP_IFACE" &>/dev/null; then
+  log "No Wi-Fi interface $AP_IFACE. Available links:"
+  ip -br link 2>/dev/null | sed 's/^/  /' || true
+  die "Set AP_IFACE in .hotspot.env (e.g. wlan1 if you use a USB Wi-Fi adapter)."
+fi
+
+# AP mode is required for the network to be visible; checked after setup
+ap_mode_is_up() {
+  if ! command -v iw &>/dev/null; then
+    return 1
+  fi
+  iw dev "$AP_IFACE" info 2>/dev/null | grep -qi "type ap"
+}
 
 nm_diag() {
   log "---- nmcli (for debugging) ----"
@@ -73,9 +89,9 @@ if rfkill list wifi 2>/dev/null | grep -q "Soft blocked: yes"; then
 fi
 
 if require_bin apt-get; then
-  log "Installing packages (qrencode optional, for generate-demo-qrs)…"
+  log "Installing packages (iw, hostapd, dnsmasq, qrencode optional)…"
   apt-get update -qq
-  apt-get install -y -qq hostapd dnsmasq qrencode 2>/dev/null || apt-get install -y -qq hostapd dnsmasq
+  apt-get install -y -qq iw hostapd dnsmasq qrencode 2>/dev/null || apt-get install -y -qq iw hostapd dnsmasq
 fi
 
 use_nm=0
@@ -107,7 +123,10 @@ setup_classic_ap() {
   fi
   if require_bin apt-get; then
     dpkg -l dhcpcd5 &>/dev/null || dpkg -l dhcpcd &>/dev/null || apt-get install -y -qq dhcpcd5 2>/dev/null || true
+    dpkg -l iw &>/dev/null || apt-get install -y -qq iw 2>/dev/null || true
   fi
+  ip link set dev "$AP_IFACE" up 2>/dev/null || true
+  iw dev "$AP_IFACE" set power_save off 2>/dev/null || true
   DHCPCD_CONF="/etc/dhcpcd.conf"
   if ! grep -q "# --- smartair-ap dhcpcd begin ---" "$DHCPCD_CONF" 2>/dev/null; then
     cat >> "$DHCPCD_CONF" <<DHCPEOF
@@ -132,9 +151,12 @@ DNS_EOF
 interface=${AP_IFACE}
 driver=nl80211
 ssid=${SMARTAIR_AP_SSID}
+# 2.4 GHz only; channel must be legal in WIFI_COUNTRY
 hw_mode=g
-channel=6
-wmm_enabled=0
+channel=${AP_CHANNEL}
+# WMM on helps many phones list the network; ignore_broadcast=0 = SSID not hidden
+wmm_enabled=1
+beacon_int=100
 auth_algs=1
 ignore_broadcast_ssid=0
 wpa=2
@@ -152,7 +174,15 @@ HPEOF
     systemctl enable dnsmasq
     systemctl restart dhcpcd 2>/dev/null || true
     systemctl restart dnsmasq
+    systemctl unmask hostapd 2>/dev/null || true
     systemctl restart hostapd
+    sleep 2
+    if ! systemctl is-active --quiet hostapd; then
+      log "hostapd failed to run. Last journal lines:"
+      journalctl -u hostapd -n 40 --no-pager 2>&1 | sed 's/^/  /' || true
+    elif ! ap_mode_is_up; then
+      log "hostapd is active but $AP_IFACE is not in AP mode yet. Try: sudo $ROOT/scripts/verify-hotspot.sh"
+    fi
   else
     service dnsmasq restart
     service hostapd restart
@@ -215,6 +245,11 @@ try_nm_ap() {
     sleep 2
     IP_AP="$(ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1 || true)"
   fi
+  sleep 2
+  if ! ap_mode_is_up; then
+    log "Note: 'iw' does not show AP mode on $AP_IFACE after nmcli. The hotspot may still be broken on some Pis."
+    log "  → Run:  sudo $ROOT/scripts/verify-hotspot.sh   or try:  HOTSPOT_USE_CLASSIC=1 $ROOT/setuphotspot"
+  fi
   return 0
 }
 
@@ -263,5 +298,14 @@ log "Next: run (as normal user)  $ROOT/scripts/generate-demo-qrs.sh --detect"
 log "And run your app bound to 0.0.0.0, e.g.  SMARTAIR_PORT=$SMARTAIR_PORT ./run"
 if [[ -z "${IP_AP:-}" ]]; then
   log "If IP is empty, wait a few seconds and: ip -4 a show $AP_IFACE"
+fi
+if ap_mode_is_up; then
+  log "AP mode looks OK on $AP_IFACE (2.4 GHz) — the SSID should appear on phones in range."
+else
+  if [[ -n "${IP_AP:-}" ]]; then
+    log "WARNING: $AP_IFACE is not in AP mode — phones will usually NOT see '$SMARTAIR_AP_SSID'."
+    log "  Diagnose:  sudo $ROOT/scripts/verify-hotspot.sh"
+    log "  Often fixed:  HOTSPOT_USE_CLASSIC=1 $ROOT/setuphotspot   OR  USB Wi-Fi (set AP_IFACE=wlan1)"
+  fi
 fi
 exit 0
