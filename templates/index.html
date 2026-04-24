@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,500;0,600;0,700;0,800;1,500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Nunito:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Outfit:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -28,6 +28,8 @@
         --shadow: 0 4px 0 rgba(0, 0, 0, 0.06), 0 8px 24px rgba(139, 92, 246, 0.12);
         --font: "Nunito", system-ui, sans-serif;
         --display: "Fredoka", "Nunito", system-ui, sans-serif;
+        --intro: "Outfit", "Nunito", system-ui, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
       }
       * {
         box-sizing: border-box;
@@ -55,50 +57,311 @@
         margin: 0 auto;
         padding: 1.5rem 1.25rem 3rem;
       }
-      .intro {
-        text-align: center;
-        width: 100%;
-        max-width: 100%;
-        padding: 1.45rem 1.3rem 1.55rem;
-        margin: 0 0 1.25rem;
-        background: linear-gradient(180deg, #f8f0ff 0%, #fff 36%);
-        border-radius: var(--radius);
-        border: 3px solid #b197fc;
-        box-shadow: var(--shadow);
+      .intro-hero {
+        position: relative;
+        margin: 0 0 1.5rem;
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.09);
+        background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 40%, #ecfeff 100%);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.85) inset, 0 20px 50px -12px rgba(15, 23, 42, 0.12),
+          0 0 0 1px rgba(255, 255, 255, 0.5) inset;
       }
-      .intro-kicker {
-        font-family: var(--display);
-        font-size: 0.82rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
+      .intro-hero__bg {
+        position: absolute;
+        inset: 0;
+        background-image: linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+        background-size: 32px 32px;
+        opacity: 0.55;
+        pointer-events: none;
+      }
+      .intro-hero__bg::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 90% 70% at 0% 0%, rgba(20, 184, 166, 0.12), transparent 55%),
+          radial-gradient(ellipse 60% 50% at 100% 100%, rgba(99, 102, 241, 0.08), transparent 50%);
+        pointer-events: none;
+      }
+      .intro-hero__inner {
+        position: relative;
+        z-index: 1;
+        padding: clamp(1.35rem, 3.2vw, 2.2rem) clamp(1.2rem, 2.4vw, 2rem) clamp(1.5rem, 2.5vw, 2.1rem);
+      }
+      .intro-ribbon {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem 0.6rem;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #5f3dc4;
+        color: #64748b;
+        margin: 0 0 1.15rem;
+      }
+      .intro-ribbon__mark {
+        color: #0d9488;
+        font-weight: 600;
+      }
+      .intro-ribbon__dot {
+        color: #cbd5e1;
+      }
+      .intro-hero__grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem 1.75rem;
+        align-items: start;
+      }
+      @media (min-width: 860px) {
+        .intro-hero__grid {
+          grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+          gap: 1.75rem 2rem;
+        }
+      }
+      .intro-eyebrow {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #0d9488;
         margin: 0 0 0.5rem;
       }
-      .intro-title {
-        font-family: var(--display);
-        font-size: clamp(1.25rem, 2.8vw, 1.7rem);
-        font-weight: 700;
-        margin: 0 0 0.65rem;
-        line-height: 1.3;
-        color: #5f3dc4;
+      .intro-title,
+      #intro-heading {
+        font-family: var(--intro);
+        font-size: clamp(1.4rem, 2.6vw, 1.95rem);
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: -0.025em;
+        color: #0f172a;
+        margin: 0 0 0.9rem;
+        max-width: 32rem;
+        text-align: left;
+      }
+      .intro-dek {
+        margin: 0;
+        font-size: 0.96rem;
+        line-height: 1.6;
+        color: #475569;
+        font-weight: 500;
         max-width: 40rem;
-        margin-left: auto;
-        margin-right: auto;
+        text-align: left;
+      }
+      .intro-dek strong {
+        color: #0f172a;
+        font-weight: 600;
       }
       .intro-byline {
-        font-size: clamp(0.95rem, 2vw, 1.1rem);
-        font-weight: 800;
-        color: #c2255c;
-        margin: 0 0 0.9rem;
-      }
-      .intro-lead {
-        margin: 0 auto;
-        font-size: 0.95rem;
-        color: #4c0f6d;
+        margin: 1.1rem 0 0;
+        font-family: var(--intro);
+        font-size: 0.92rem;
         font-weight: 600;
+        color: #334155;
+        text-align: left;
+        border-left: 3px solid #2dd4bf;
+        padding: 0.2rem 0 0.2rem 0.75rem;
+      }
+      .intro-facts {
+        list-style: none;
+        margin: 1.1rem 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .intro-facts li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.35rem 0.5rem;
+        font-size: 0.8rem;
         line-height: 1.45;
-        max-width: 36rem;
+        color: #64748b;
+        font-weight: 500;
+        text-align: left;
+      }
+      .intro-facts .im {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #0e7490;
+        min-width: 5.5rem;
+      }
+      .intro-hero__aside {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+      .intro-aside__card {
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 16px;
+        padding: 1.05rem 1.1rem 1.15rem;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+      }
+      .intro-aside__label {
+        display: block;
+        font-family: var(--mono);
+        font-size: 0.62rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin: 0 0 0.4rem;
+      }
+      .intro-aside__num {
+        font-family: var(--intro);
+        font-size: clamp(1.9rem, 4vw, 2.4rem);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        color: #0d9488;
+        line-height: 1;
+        margin: 0 0 0.4rem;
+      }
+      .intro-aside__sub {
+        margin: 0;
+        font-size: 0.72rem;
+        line-height: 1.45;
+        color: #94a3b8;
+        font-weight: 500;
+      }
+      .intro-led {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin: 0.1rem 0 0;
+      }
+      .intro-led__row {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-size: 0.8rem;
+        color: #334155;
+        font-weight: 600;
+        text-align: left;
+      }
+      .intro-led__row .k-dot {
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 2px solid rgba(15, 23, 42, 0.12);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      .intro-led__row .g {
+        background: #22c55e;
+      }
+      .intro-led__row .y {
+        background: #facc15;
+      }
+      .intro-led__row .r {
+        background: #f87171;
+      }
+      .intro-investigation {
+        margin-top: 1.35rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+      }
+      .intro-investigation__h {
+        font-family: var(--intro);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #0f172a;
+        margin: 0 0 0.75rem;
+        text-align: center;
+      }
+      .intro-pills {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+      @media (min-width: 600px) {
+        .intro-pills {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      .intro-pill {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        text-align: left;
+        margin: 0;
+        padding: 0.65rem 0.8rem 0.7rem;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.55);
+        border: 1px solid rgba(15, 23, 42, 0.07);
+        font-size: 0.8rem;
+        line-height: 1.4;
+        color: #475569;
+        font-weight: 500;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+      }
+      .intro-pill strong {
+        display: block;
+        font-family: var(--intro);
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #0d9488;
+        letter-spacing: 0.02em;
+        margin: 0 0 0.1rem;
+      }
+      .intro-hero__main code,
+      .intro-aside__sub code,
+      .intro-dek code {
+        font-family: var(--mono);
+        font-size: 0.78em;
+        font-weight: 500;
+        color: #0e7490;
+        background: rgba(14, 116, 144, 0.08);
+        padding: 0.1em 0.3em;
+        border-radius: 4px;
+      }
+      @media (max-width: 859px) {
+        .intro-ribbon {
+          text-align: center;
+        }
+        .intro-hero__main {
+          text-align: center;
+        }
+        .intro-eyebrow,
+        .intro-title,
+        #intro-heading,
+        .intro-dek,
+        .intro-facts,
+        .intro-facts li {
+          text-align: center;
+        }
+        .intro-facts {
+          align-items: center;
+        }
+        .intro-facts .im {
+          min-width: auto;
+        }
+        .intro-byline {
+          display: inline-block;
+          text-align: center;
+          border-left: none;
+          border-top: 3px solid #2dd4bf;
+          padding: 0.5rem 0.75rem 0 0.75rem;
+        }
+        .intro-title,
+        #intro-heading,
+        .intro-dek {
+          margin-left: auto;
+          margin-right: auto;
+        }
       }
       .panel {
         background: #fff;
@@ -107,40 +370,6 @@
         box-shadow: var(--shadow);
         padding: 1.4rem 1.45rem;
         margin-bottom: 1.25rem;
-      }
-      .color-key {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.4rem 0.6rem;
-        margin-top: 0.85rem;
-        font-size: 0.86rem;
-        font-weight: 700;
-        color: var(--ink);
-      }
-      .color-key span {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.6rem;
-        border-radius: 8px;
-        background: #fff;
-        border: 2px solid rgba(0, 0, 0, 0.08);
-      }
-      .color-key .k-dot {
-        width: 0.7rem;
-        height: 0.7rem;
-        border-radius: 50%;
-        border: 2px solid rgba(0, 0, 0, 0.12);
-      }
-      .color-key .g {
-        background: #51cf66;
-      }
-      .color-key .y {
-        background: #ffd43b;
-      }
-      .color-key .r {
-        background: #ff6b6b;
       }
       .ranks-section {
         padding: 1.45rem 1.3rem 1.55rem;
@@ -855,42 +1084,6 @@
         box-shadow: 0 6px 0 #a61e1e, 0 8px 16px rgba(201, 42, 42, 0.25);
         outline: none;
       }
-      .try-strip {
-        margin: 1rem auto 0;
-        max-width: 40rem;
-        padding: 1rem 1.1rem 1.1rem;
-        background: linear-gradient(135deg, #e7f5ff 0%, #fff3bf 50%, #ffe3e3 100%);
-        border-radius: 16px;
-        border: 3px dashed #4dabf7;
-        text-align: left;
-      }
-      .try-strip__title {
-        font-family: var(--display);
-        font-size: 1.2rem;
-        font-weight: 800;
-        color: #0b4f6b;
-        margin: 0 0 0.5rem;
-      }
-      .try-strip__list {
-        margin: 0;
-        padding-left: 1.2rem;
-        color: #2d0a3d;
-        font-size: 1rem;
-        font-weight: 700;
-        line-height: 1.65;
-      }
-      .try-strip__list li {
-        margin-bottom: 0.2rem;
-      }
-      .color-key span {
-        transition: transform 0.2s ease;
-        cursor: default;
-        font-size: 0.95rem;
-        padding: 0.45rem 0.7rem;
-      }
-      .color-key span:hover {
-        transform: scale(1.05);
-      }
       .stat--tap {
         cursor: help;
         transition: transform 0.12s ease, box-shadow 0.12s ease;
@@ -922,9 +1115,6 @@
       @media (prefers-reduced-motion: reduce) {
         .big-score.is-bump {
           animation: none;
-        }
-        .color-key span:hover {
-          transform: none;
         }
         .room-pick:hover {
           transform: none;
@@ -962,37 +1152,85 @@
   </head>
   <body>
     <div class="shell">
-      <header class="intro" id="project-intro" aria-labelledby="intro-heading">
-        <p class="intro-kicker">Searles Elementary — Air quality · Science fair</p>
-        <h1 class="intro-title" id="intro-heading">
-          Where in our home is the air cleanest—and how does that change from morning, to lunch, to
-          evening?
-        </h1>
-        <p class="intro-byline">Sophia Merce G. Manaol</p>
-        <p class="intro-lead">
-          <strong>That is what this experiment tests.</strong> The air gets a
-          <strong>score from 0 to 100</strong>—<strong>bigger number = cleaner</strong> air. When you
-          move the small computer to a new room, pick that room on the list below. The clock on the
-          project tells morning, lunch, and evening. Colored lights on the box match the key here:
-        </p>
-        <div class="color-key" role="list" aria-label="What the light colors mean">
-          <span role="listitem"
-            ><span class="k-dot g" aria-hidden="true"></span> Green — nice &amp; clear</span
-          >
-          <span role="listitem"
-            ><span class="k-dot y" aria-hidden="true"></span> Yellow — okay, keep an eye on it</span
-          >
-          <span role="listitem"
-            ><span class="k-dot r" aria-hidden="true"></span> Red — time for a window or fan if you can</span
-          >
-        </div>
-        <div class="try-strip" role="group" aria-label="Things to try">
-          <p class="try-strip__title">Try this with your class!</p>
-          <ul class="try-strip__list">
-            <li>Change the <strong>room</strong> when the box moves—watch the line chart start fresh.</li>
-            <li>Ask a friend to <strong>breathe gently</strong> near the sensor and peek at <strong>humidity</strong>.</li>
-            <li>Tap the <strong>colored number boxes</strong> below for a quick “what is this?” hint.</li>
-          </ul>
+      <header class="intro-hero" id="project-intro" aria-labelledby="intro-heading">
+        <div class="intro-hero__bg" aria-hidden="true"></div>
+        <div class="intro-hero__inner">
+          <p class="intro-ribbon">
+            <span class="intro-ribbon__mark">Searles Elementary</span>
+            <span class="intro-ribbon__dot" aria-hidden="true">·</span>
+            <span>Science fair · Field study</span>
+          </p>
+          <div class="intro-hero__grid">
+            <div class="intro-hero__main">
+              <p class="intro-eyebrow">Research question</p>
+              <h1 class="intro-title" id="intro-heading">
+                Where in our home is the air at its best on this sensor — and how does that change
+                from morning, to lunch, to evening?
+              </h1>
+              <p class="intro-dek">
+                This study compares <strong>rooms</strong> and <strong>times of day</strong> using a
+                BME680 sensor on a Raspberry Pi. The <strong>0–100 number</strong> is our own index
+                from <strong>gas resistance</strong> (a relative “how does the air look to this
+                metal-oxide film?” reading — not a government air-quality law). Bigger on our scale
+                = higher gas resistance in the model we set in <code>config.yaml</code>. Move the
+                rig, set the <strong>room</strong> below, and the Pi’s clock places each sample in
+                morning, lunch, or evening.
+              </p>
+              <p class="intro-byline">Sophia Merce G. Manaol</p>
+              <ul class="intro-facts" role="list">
+                <li>
+                  <span class="im">Sensor</span>
+                  <span>Bosch BME680 — temperature, humidity, barometric pressure, gas (MOx)</span>
+                </li>
+                <li>
+                  <span class="im">Data</span>
+                  <span>SQLite + chart on this page; 30 min logging (configurable)</span>
+                </li>
+              </ul>
+            </div>
+            <aside class="intro-hero__aside" aria-label="Index scale and hardware LEDs">
+              <div class="intro-aside__card">
+                <span class="intro-aside__label">Project air index (software)</span>
+                <p class="intro-aside__num" aria-hidden="true">0 – 100</p>
+                <p class="intro-aside__sub">
+                  Mapped from the gas channel (Ω) with your <code>scale_min_ohms</code> /
+                  <code>scale_max_ohms</code>. Labels “good / moderate / bad” use
+                  <code>good_min</code> and <code>moderate_min</code>.
+                </p>
+              </div>
+              <div class="intro-aside__card">
+                <span class="intro-aside__label">RGB on the build (matches)</span>
+                <div class="intro-led" role="list" aria-label="LED colors on the project box">
+                  <div class="intro-led__row" role="listitem">
+                    <span class="k-dot g" aria-hidden="true"></span> Green — index in the “good” band
+                  </div>
+                  <div class="intro-led__row" role="listitem">
+                    <span class="k-dot y" aria-hidden="true"></span> Yellow — “moderate”
+                  </div>
+                  <div class="intro-led__row" role="listitem">
+                    <span class="k-dot r" aria-hidden="true"></span> Red — “bad” (time to ventilate)
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+          <div class="intro-investigation" role="group" aria-label="Ideas to try in class">
+            <h2 class="intro-investigation__h">Hands-on with the experiment</h2>
+            <div class="intro-pills">
+              <p class="intro-pill">
+                <strong>Change location</strong>
+                When the Pi moves, pick the new <strong>room</strong> so the graph and log stay honest.
+              </p>
+              <p class="intro-pill">
+                <strong>Breath demo</strong>
+                Very gentle air near the sensor can bump <strong>humidity</strong> and the live score line.
+              </p>
+              <p class="intro-pill">
+                <strong>Tap the boxes</strong>
+                Under “Air score,” tap each <strong>number tile</strong> for a one-line what-it-means note.
+              </p>
+            </div>
+          </div>
         </div>
       </header>
 
