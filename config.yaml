@@ -80,4 +80,5 @@ sensors:
   dry_run: false
   # I2C bus for the GPIO header (SDA/SCL). Almost always 1 on Pi 3/4/5. If you get
   # "Unable to identify BME680 at 0x76 (IOError)", try 0 and run: i2cdetect -y 0  and  -y 1
+  # Wiring + multimeter + ADDR/SDO: see docs/bme680-wiring.md
   i2c_bus: 1
