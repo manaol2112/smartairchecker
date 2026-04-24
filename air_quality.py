@@ -20,14 +20,21 @@ def evaluate_air_quality(
     min_gas_ohms: float,
     baseline_ohms: float,
     use_relative_score: bool,
+    scale_min_ohms: float = 10_000.0,
+    scale_max_ohms: float = 200_000.0,
 ) -> AirQualityResult:
     if gas_ohms < min_gas_ohms or gas_ohms <= 0:
         label: QualityLabel = "bad"
         score = 0
         return AirQualityResult(label=label, gas_ohms=gas_ohms, score_0_100=score)
 
-    if use_relative_score and baseline_ohms > 0:
-        # Simple linear map: at baseline = 100, at half baseline = 50, floor at 0
+    if use_relative_score and scale_max_ohms > scale_min_ohms:
+        # Linear map: higher gas (Ω) = cleaner. Below min → 0, at/above max → 100.
+        t = 100.0 * (gas_ohms - scale_min_ohms) / (scale_max_ohms - scale_min_ohms)
+        score = int(max(0, min(100, round(t))))
+    elif use_relative_score and baseline_ohms > 0:
+        # Legacy: ratio to baseline_ohms. Note: this pins score at 100 for any
+        # gas_ohms >= baseline_ohms, so a purifier with modest VOC changes can look “stuck”.
         ratio = min(2.0, max(0.0, gas_ohms / baseline_ohms))
         score = int(max(0, min(100, round(ratio * 100))))
     else:

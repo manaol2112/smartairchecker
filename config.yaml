@@ -12,17 +12,21 @@ gpio:
 
 # Air quality: BME680 gas resistance (Ω) is higher when the air is “cleaner”
 # (after the recommended ~48h burn-in). Adjust after calibration in your home.
-# Optional: set a baseline_ohms from a “known good” room to improve relative score.
+# Score: linear map — below scale_min_ohms = score 0, at/above scale_max_ohms = 100.
+# If the score is stuck (often at 100), your real readings may sit in a narrow range:
+# set scale_max_ohms *above* the kΩ (×1000) you see on the “clean” / purifier-on runs,
+# and scale_min_ohms near a “stuffy” or polluted value so the bar has room to move.
 air_quality:
   # Minimum gas ohm to consider “readings stable”
   min_gas_ohms: 1000
   # Thresholds: good >= good_min, moderate between moderate_min and good_min, else bad
   good_min: 20000
   moderate_min: 10000
-  # Relative score: blend gas vs baseline (0-100, higher = cleaner)
   use_relative_score: true
-  # Typical “clean room” gas resistance after burn-in; also used for the score until the
-  # hot gas reading is stable on first start (then real I2C values take over).
+  # 0-100 gas score: span (higher ohm = cleaner; tune to your room’s typical range)
+  scale_min_ohms: 10000
+  scale_max_ohms: 200000
+  # Seed value until the gas heater stabilizes; not used for the 0-100 line map above.
   baseline_ohms: 50000
 
 # How local clock time maps to Morning / Lunch / Evening for charts and ranks

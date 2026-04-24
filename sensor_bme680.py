@@ -79,6 +79,8 @@ class BME680Monitor:
         min_ohms = float(iq.get("min_gas_ohms", 1_000))
         baseline = float(iq.get("baseline_ohms", 50_000))
         use_rel = bool(iq.get("use_relative_score", True))
+        s_min = float(iq.get("scale_min_ohms", 10_000))
+        s_max = float(iq.get("scale_max_ohms", 200_000))
         t_base = 24.0
         h_base = 50.0
         g_base = 25_000.0
@@ -120,6 +122,8 @@ class BME680Monitor:
                 min_gas_ohms=min_ohms,
                 baseline_ohms=baseline,
                 use_relative_score=use_rel,
+                scale_min_ohms=s_min,
+                scale_max_ohms=s_max,
             )
             snap: dict[str, Any] = {
                 "temperature_c": round(temp, 2),
