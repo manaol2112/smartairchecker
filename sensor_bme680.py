@@ -15,6 +15,21 @@ from settings import is_dry_run, load_config
 
 logger = logging.getLogger(__name__)
 
+# Bosch BME680 IIR filter: larger = smoother, slower to follow quick changes (e.g. breath).
+# Allowed: 0, 1, 3, 7, 15, 31, 63, 127 (see package constants FILTER_SIZE_*)
+_ALLOWED_IIR: tuple[int, ...] = (0, 1, 3, 7, 15, 31, 63, 127)
+
+
+def _bme_iir_filter_constant(bme_mod: Any, size: int) -> Any:
+    if size not in _ALLOWED_IIR:
+        size = 3
+    for try_size in (size, 0, 1, 3, 7):
+        name = f"FILTER_SIZE_{try_size}"
+        c = getattr(bme_mod, name, None)
+        if c is not None:
+            return c
+    return bme_mod.FILTER_SIZE_3
+
 
 class BME680Monitor:
     """Background reads BME680; results protected by a lock for thread-safe access."""
@@ -61,7 +76,13 @@ class BME680Monitor:
         s.set_humidity_oversample(bme.OS_2X)
         s.set_pressure_oversample(bme.OS_4X)
         s.set_temperature_oversample(bme.OS_8X)
-        s.set_filter(bme.FILTER_SIZE_3)
+        sens = self._cfg.get("sensors", {}) if isinstance(self._cfg.get("sensors"), dict) else {}
+        iir = int(sens.get("iir_filter_size", 0))
+        s.set_filter(_bme_iir_filter_constant(bme, iir))
+        if iir == 0:
+            logger.info(
+                "BME680 IIR filter off (iir_filter_size=0): T/H respond faster (e.g. breath demo); set 3 for smoother readings"
+            )
         s.set_gas_heater_temperature(320)
         s.set_gas_heater_duration(150)
         self._sensor = s
@@ -152,4 +173,4 @@ class BME680Monitor:
             return dict(self._last) if self._last else {}
 
 
-__all__ = ["BME680Monitor"]
+__all__ = ["BME680Monitor", "_bme_iir_filter_constant"]

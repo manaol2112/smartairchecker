@@ -241,7 +241,15 @@ def main() -> int:
     s.set_humidity_oversample(bme.OS_2X)
     s.set_pressure_oversample(bme.OS_4X)
     s.set_temperature_oversample(bme.OS_8X)
-    s.set_filter(bme.FILTER_SIZE_3)
+    try:
+        from sensor_bme680 import _bme_iir_filter_constant
+        from settings import load_config
+
+        iir = int((load_config().get("sensors") or {}).get("iir_filter_size", 0))
+    except (OSError, TypeError, ValueError):
+        iir = 0
+    s.set_filter(_bme_iir_filter_constant(bme, iir))
+    print(f"   IIR filter size: {iir}  (sensors.iir_filter_size in config.yaml; 0 = faster T/H, 3 = smoother)")
     s.set_gas_heater_temperature(320)
     s.set_gas_heater_duration(150)
 

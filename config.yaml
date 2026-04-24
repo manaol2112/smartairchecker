@@ -88,6 +88,8 @@ sensors:
   # "Unable to identify BME680 at 0x76 (IOError)", try 0 and run: i2cdetect -y 0  and  -y 1
   # Wiring + multimeter + ADDR/SDO: see docs/bme680-wiring.md
   i2c_bus: 1
+  # BME680 IIR filter for T/pressure/humidity: 0 = fastest (see breath in humidity); 3 = smoother, slower
+  iir_filter_size: 0
   # Pause after each successful read (seconds). Use ~0.4 with server.live_poll_ms ~400 for
   # a snappier live page (e.g. breath demo: humidity spikes first; see docs/bme680-wiring.md).
   read_interval_seconds: 1.0
