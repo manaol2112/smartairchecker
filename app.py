@@ -39,11 +39,26 @@ def _get_outputs() -> AirQualityIndicator:
     return _outputs
 
 
+def _data_log_interval_sec() -> float:
+    d = load_config().get("data", {})
+    if not isinstance(d, dict):
+        return 30 * 60.0
+    v = d.get("log_interval_seconds", 30 * 60)
+    return max(1.0, float(v))
+
+
 def _logging_loop() -> None:
+    """Append one row to SQLite + CSV on each tick; default tick is every 30 minutes."""
     while True:
-        time.sleep(2.0)
         snap = _get_monitor().get_snapshot()
         if not snap or "quality" not in snap:
+            time.sleep(2.0)
+            continue
+        # After a room change, only log once the BME680 has completed a read *after* the switch
+        # (snapshot ts is newer than the change) so rows match the room’s air.
+        ch = state.get_room_change_ts()
+        if ch > 0.0 and float(snap.get("ts", 0.0)) <= ch:
+            time.sleep(0.3)
             continue
         try:
             insert_reading(
@@ -57,6 +72,7 @@ def _logging_loop() -> None:
             )
         except OSError as e:
             app.logger.error("data insert failed: %s", e)
+        time.sleep(_data_log_interval_sec())
 
 
 def _follow_hardware_loop() -> None:
@@ -137,6 +153,11 @@ def run() -> None:
     global _monitor, _outputs
     state.init_default_room()
     ensure_db()
+    db_path = load_config().get("data", {}).get("sqlite_path", "data/readings.db")
+    log_iv = _data_log_interval_sec()
+    print(
+        f"  Data log: SQLite + CSV every {log_iv/60.0:.1f} min  (set data.log_interval_seconds in config.yaml; DB: {db_path})"
+    )
 
     _monitor = BME680Monitor()
     _outputs = AirQualityIndicator()

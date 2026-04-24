@@ -66,10 +66,12 @@ buzzer:
   beep_off: 0.2
   repeat_every: 2.0
 
-# Data files (created on the Pi)
+# Data files (local on the Pi — SQLite for charts; CSV is a second copy of each point)
 data:
   sqlite_path: "data/readings.db"
   csv_path: "data/readings_log.csv"
+  # How often to save one row (all sensor fields + room + time). 1800 = 30 minutes.
+  log_interval_seconds: 1800
 
 # Web dashboard (open from another device on the same network)
 # Port 5000 is often taken on macOS (AirPlay) — 5001 is a safer default. Override with

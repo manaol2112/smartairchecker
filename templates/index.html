@@ -835,16 +835,128 @@
       }
       .room-pick {
         width: 100%;
-        max-width: 20rem;
-        padding: 0.55rem 0.75rem;
-        border-radius: 12px;
-        border: 3px solid #ff6b6b;
+        max-width: 24rem;
+        min-height: 3rem;
+        padding: 0.75rem 1rem;
+        border-radius: 16px;
+        border: 4px solid #ff6b6b;
         background: #fff;
         font-family: var(--font);
         font-weight: 800;
-        font-size: 1rem;
+        font-size: 1.1rem;
         color: var(--ink);
-        box-shadow: 0 3px 0 #c92a2a;
+        box-shadow: 0 4px 0 #c92a2a;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .room-pick:hover,
+      .room-pick:focus {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 0 #a61e1e, 0 8px 16px rgba(201, 42, 42, 0.25);
+        outline: none;
+      }
+      .try-strip {
+        margin: 1rem auto 0;
+        max-width: 40rem;
+        padding: 1rem 1.1rem 1.1rem;
+        background: linear-gradient(135deg, #e7f5ff 0%, #fff3bf 50%, #ffe3e3 100%);
+        border-radius: 16px;
+        border: 3px dashed #4dabf7;
+        text-align: left;
+      }
+      .try-strip__title {
+        font-family: var(--display);
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0b4f6b;
+        margin: 0 0 0.5rem;
+      }
+      .try-strip__list {
+        margin: 0;
+        padding-left: 1.2rem;
+        color: #2d0a3d;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.65;
+      }
+      .try-strip__list li {
+        margin-bottom: 0.2rem;
+      }
+      .color-key span {
+        transition: transform 0.2s ease;
+        cursor: default;
+        font-size: 0.95rem;
+        padding: 0.45rem 0.7rem;
+      }
+      .color-key span:hover {
+        transform: scale(1.05);
+      }
+      .stat--tap {
+        cursor: help;
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+      }
+      .stat--tap:hover,
+      .stat--tap:focus {
+        transform: scale(1.02);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        outline: 2px solid #4dabf7;
+        outline-offset: 2px;
+      }
+      .stat--tap:focus:not(:focus-visible) {
+        outline: none;
+      }
+      @keyframes score-bump {
+        0% {
+          transform: scale(1);
+        }
+        35% {
+          transform: scale(1.08);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .big-score.is-bump {
+        animation: score-bump 0.5s ease;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .big-score.is-bump {
+          animation: none;
+        }
+        .color-key span:hover {
+          transform: none;
+        }
+        .room-pick:hover {
+          transform: none;
+        }
+      }
+      .stat-toast {
+        position: fixed;
+        bottom: 1.25rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(120%);
+        max-width: min(92vw, 24rem);
+        padding: 0.9rem 1.15rem;
+        background: #fff;
+        border: 3px solid #15aabf;
+        border-radius: 16px;
+        font-family: var(--font);
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0b4f6b;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+        z-index: 200;
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        pointer-events: none;
+      }
+      .stat-toast.is-open {
+        transform: translateX(-50%) translateY(0);
+      }
+      .confetti-canvas {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 150;
       }
     </style>
   </head>
@@ -858,21 +970,29 @@
         </h1>
         <p class="intro-byline">Sophia Merce G. Manaol</p>
         <p class="intro-lead">
-          <strong>That is what this experiment tests.</strong> A score from <strong>0–100</strong> means
-          <strong>higher = cleaner</strong> air. You pick the room each time the Raspberry Pi is moved, and
-          the time of day tells us which part of the day the sample belongs to. The lights on the build
-          match the colors below.
+          <strong>That is what this experiment tests.</strong> The air gets a
+          <strong>score from 0 to 100</strong>—<strong>bigger number = cleaner</strong> air. When you
+          move the small computer to a new room, pick that room on the list below. The clock on the
+          project tells morning, lunch, and evening. Colored lights on the box match the key here:
         </p>
         <div class="color-key" role="list" aria-label="What the light colors mean">
           <span role="listitem"
-            ><span class="k-dot g" aria-hidden="true"></span> Green = good</span
+            ><span class="k-dot g" aria-hidden="true"></span> Green — nice &amp; clear</span
           >
           <span role="listitem"
-            ><span class="k-dot y" aria-hidden="true"></span> Yellow = okay, watch it</span
+            ><span class="k-dot y" aria-hidden="true"></span> Yellow — okay, keep an eye on it</span
           >
           <span role="listitem"
-            ><span class="k-dot r" aria-hidden="true"></span> Red = needs fresher air</span
+            ><span class="k-dot r" aria-hidden="true"></span> Red — time for a window or fan if you can</span
           >
+        </div>
+        <div class="try-strip" role="group" aria-label="Things to try">
+          <p class="try-strip__title">Try this with your class!</p>
+          <ul class="try-strip__list">
+            <li>Change the <strong>room</strong> when the box moves—watch the line chart start fresh.</li>
+            <li>Ask a friend to <strong>breathe gently</strong> near the sensor and peek at <strong>humidity</strong>.</li>
+            <li>Tap the <strong>colored number boxes</strong> below for a quick “what is this?” hint.</li>
+          </ul>
         </div>
       </header>
 
@@ -884,18 +1004,18 @@
       >
         <div class="ranks-head">
           <div>
-            <h2>🏆 Rankings by time of day</h2>
-            <p class="ranks-hint" id="ranksSimpleTip">Higher points = cleaner air in that room for that time.</p>
+            <h2>🏆 Which room wins?</h2>
+            <p class="ranks-hint" id="ranksSimpleTip">Taller points = cleaner air in that room for that time.</p>
             <p class="ranks-dek" id="rankingSub">Loading data…</p>
           </div>
           <div class="ranks-toolbar">
-            <label for="expDate">Show data for</label>
+            <label for="expDate">Pick a day</label>
             <select id="expDate" aria-label="Filter by calendar date">
-              <option value="all">All days (averaged per time of day)</option>
+              <option value="all">All school days (mixed together)</option>
             </select>
           </div>
         </div>
-        <p class="scope-label" id="scopeLabel">Connect the Pi to collect samples; then select a day above.</p>
+        <p class="scope-label" id="scopeLabel">When the project saves numbers, you can pick a day above. Try “All school days” first!</p>
         <div class="ranking-cols" id="rankingCols"></div>
       </section>
 
@@ -904,9 +1024,9 @@
           <div class="live-head">
             <h3>
               <span class="live-badge" aria-hidden="true">Live</span>
-              Live air quality
+              Air score (right now)
             </h3>
-            <p class="live-lead">For your demo, watch the number and the line move every few seconds.</p>
+            <p class="live-lead">The big number updates while this page is open. Wave your hand, talk, or breathe near the box and see what wiggles!</p>
           </div>
           <div
             id="sensorSourceIndicator"
@@ -927,7 +1047,7 @@
             <div class="live-score-block">
               <div class="score-row">
                 <span class="big-score" id="score">—</span>
-                <span class="score-hint">Score (0–100, higher = cleaner)</span>
+                <span class="score-hint">0 = low · 100 = super clean</span>
               </div>
             </div>
             <div class="live-chip-block">
@@ -936,36 +1056,52 @@
               </div>
             </div>
           </div>
-          <div class="stat-grid">
-            <div class="stat">
-              <label>Sensor (gas, kΩ)</label>
+          <div class="stat-grid" id="statGrid">
+            <div
+              class="stat stat--tap"
+              tabindex="0"
+              data-fact-self="Bigger kΩ (kiloohms) here often means fewer smelly or sticky bits in the air, after the little heater warms up."
+            >
+              <label>Air sniff, gas part (kΩ)</label>
               <span class="val" id="gas">—</span>
             </div>
-            <div class="stat">
-              <label>Temperature (°C)</label>
+            <div
+              class="stat stat--tap"
+              tabindex="0"
+              data-fact-self="How warm the air is next to the chip. It changes fast if you hold it or breathe on it."
+            >
+              <label>How warm (°C)</label>
               <span class="val" id="temp">—</span>
             </div>
-            <div class="stat">
-              <label>Humidity (%)</label>
+            <div
+              class="stat stat--tap"
+              tabindex="0"
+              data-fact-self="How much water is floating in the air. Your breath is super humid—watch this jump in a class demo!"
+            >
+              <label>How wet the air is (%)</label>
               <span class="val" id="hum">—</span>
             </div>
-            <div class="stat">
-              <label>Pressure (hPa)</label>
+            <div
+              class="stat stat--tap"
+              tabindex="0"
+              data-fact-self="Air has weight! We measure it in hPa. It goes up and down a little with the weather."
+            >
+              <label>How heavy the air is (hPa)</label>
               <span class="val" id="pres">—</span>
             </div>
           </div>
           <div class="live-chart-block">
-            <h4>Live score over time (demo graph)</h4>
+            <h4>🎢 Score over time (your line!)</h4>
             <p class="live-chart-sub" id="liveChartSub">
-              New point about every 3 seconds while the page is open. The line uses this room’s live readings.
+              Dots add every few seconds while the page is open, for this room.
             </p>
             <div class="live-chart-wrap">
               <canvas id="liveLineChart" aria-label="Line chart of live air quality score over time"></canvas>
             </div>
           </div>
           <p class="fun-note">
-            When you change the room in the list below, this chart starts fresh. Sensor tuning lives in
-            <code>config.yaml</code>.
+            Change the <strong>room</strong> under the page—this line starts over so the graph matches
+            where the box is sitting. Grown-ups can tune the sensor in <code>config.yaml</code>.
           </p>
           <div class="time" id="clock">Last update: —</div>
         </div>
@@ -973,9 +1109,9 @@
 
       <div class="grid-below">
         <div class="panel" id="data-panel">
-          <h3>Current room (move the project here)</h3>
-          <label for="room" style="display: block; font-size: 0.9rem; font-weight: 800; color: #c2255c; margin-bottom: 0.35rem"
-            >Which room is the sensor in right now?</label
+          <h3>📍 Where is the science box right now?</h3>
+          <label for="room" style="display: block; font-size: 1rem; font-weight: 800; color: #c2255c; margin-bottom: 0.45rem"
+            >Pick the room the Raspberry Pi and sensor are in (tap to choose):</label
           >
           <select class="room-pick" id="room" name="room">
             {% for r in rooms %}
@@ -983,9 +1119,9 @@
             {% endfor %}
           </select>
           <details class="more-detail" open>
-            <summary>Line graph &amp; data table (same numbers as the rankings above)</summary>
-            <p class="q-lead" style="margin: 0.6rem 0; font-size: 0.88rem">
-              Each line is a room. Points are the same averages used for the ranking columns.
+            <summary>📈 Big picture graph &amp; number table (same as the score cards up top)</summary>
+            <p class="q-lead" style="margin: 0.6rem 0; font-size: 0.95rem; font-weight: 600; color: #3b0f5c">
+              Each wiggly line = one room. Taller dots = better air, on average, for that time of day.
             </p>
             <div class="chart-wrap">
               <canvas id="roomChart" aria-label="Line chart of air quality by time of day"></canvas>
@@ -1023,6 +1159,8 @@
 
       <footer class="foot">Sophia Merce G. Manaol · Searles Elementary School · Air quality science project</footer>
     </div>
+    <div id="statToast" class="stat-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+    <canvas id="confetti" class="confetti-canvas" width="400" height="400" hidden aria-hidden="true"></canvas>
     <script>
       const el = (id) => document.getElementById(id);
       const chip = el("chip");
@@ -1035,6 +1173,92 @@
       const LIVE_MAX_POINTS = 45;
       const LIVE_ADD_EVERY_MS = 3000;
       let lastLivePointAt = 0;
+      let lastScoreVal = null;
+      let lastConfettiAt = 0;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function showStatToast(msg) {
+        const t = el("statToast");
+        if (!t) return;
+        t.hidden = false;
+        t.textContent = msg;
+        t.classList.add("is-open");
+        clearTimeout(showStatToast._tm);
+        showStatToast._tm = setTimeout(() => {
+          t.classList.remove("is-open");
+          setTimeout(() => {
+            t.hidden = true;
+          }, 400);
+        }, 5200);
+      }
+      function wireStatTaps() {
+        const g = el("statGrid");
+        if (!g) return;
+        const open = (ev) => {
+          const stat = ev.target.closest(".stat--tap");
+          if (!stat) return;
+          const m = stat.getAttribute("data-fact-self");
+          if (m) showStatToast(m);
+        };
+        g.addEventListener("click", open);
+        g.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            open(ev);
+          }
+        });
+      }
+      function maybeCelebration(score, quality) {
+        if (reducedMotion) return;
+        const sc = Number(score);
+        if (Number.isNaN(sc) || sc < 78 || quality !== "good") return;
+        if (Date.now() - lastConfettiAt < 90_000) return;
+        lastConfettiAt = Date.now();
+        const c = el("confetti");
+        if (!c) return;
+        c.hidden = false;
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+        const ctx = c.getContext("2d");
+        if (!ctx) return;
+        const parts = Array.from({ length: 64 }, () => ({
+          x: Math.random() * c.width,
+          y: -20 - Math.random() * 120,
+          vx: (Math.random() - 0.5) * 3,
+          vy: 2 + Math.random() * 4,
+          r: 3 + Math.random() * 5,
+          hue: Math.floor(Math.random() * 360),
+        }));
+        let fr = 0;
+        const maxFr = 90;
+        function frame() {
+          fr++;
+          ctx.clearRect(0, 0, c.width, c.height);
+          for (const p of parts) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.04;
+            ctx.beginPath();
+            ctx.fillStyle = `hsl(${p.hue} 85% 60%)`;
+            ctx.arc(p.x, p.y, p.r, 0, 6.28);
+            ctx.fill();
+          }
+          if (fr < maxFr) requestAnimationFrame(frame);
+          else {
+            c.hidden = true;
+            ctx.clearRect(0, 0, c.width, c.height);
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      function bumpScore() {
+        const s = el("score");
+        if (!s) return;
+        s.classList.remove("is-bump");
+        void s.offsetWidth;
+        s.classList.add("is-bump");
+        setTimeout(() => s.classList.remove("is-bump"), 600);
+      }
 
       const linePalette = [
         "#e03131",
@@ -1084,7 +1308,7 @@
                 max: 100,
                 title: {
                   display: true,
-                  text: "Average points (bigger = cleaner air)",
+                  text: "Points (bigger = cleaner air)",
                   color: "#5f3dc4",
                   font: { size: 12, weight: "800", family: "Nunito" },
                 },
@@ -1106,8 +1330,8 @@
                   label(ctx) {
                     const v = ctx.raw;
                     const s = ctx.dataset.label || "Room";
-                    if (v == null || v === "") return `${s}: no number yet in this time`;
-                    return `${s}: ${v} points (0–100 = cleaner is higher)`;
+                    if (v == null || v === "") return `${s}: no score yet for this time`;
+                    return `${s}: ${v} points (higher = cleaner air)`;
                   },
                 },
               },
@@ -1163,7 +1387,7 @@
                 max: 100,
                 title: {
                   display: true,
-                  text: "Score (0–100)",
+                  text: "Points (0 to 100)",
                   color: "#5f3dc4",
                   font: { size: 11, weight: "800", family: "Nunito" },
                 },
@@ -1195,8 +1419,7 @@
         lastLivePointAt = 0;
         const sub = el("liveChartSub");
         if (sub) {
-          sub.textContent =
-            "New point about every 3 seconds while the page is open. The line uses this room’s live readings.";
+          sub.textContent = "Dots add every few seconds while the page stays open, for the room you picked.";
         }
         if (liveTrendChart) {
           liveTrendChart.data.labels = [];
@@ -1221,7 +1444,7 @@
         liveTrendChart.update("default");
         const sub = el("liveChartSub");
         if (sub && liveHistory.length >= 2) {
-          sub.textContent = `Showing the last ${liveHistory.length} readings (about one point every 3 seconds).`;
+          sub.textContent = `Showing your last ${liveHistory.length} dots on the roller-coaster line!`;
         }
       }
 
@@ -1252,13 +1475,13 @@
         const avail = p.available_dates || [];
         if (avail.length === 0) {
           el("scopeLabel").innerHTML =
-            "No saved runs yet. When the Pi records samples, pick a <strong>calendar date</strong> above, or keep <strong>all days</strong> to average morning, lunch, and evening together.";
+            "No saved days yet. When the Pi logs air checks, come back and pick a <strong>day</strong> from the menu—or keep <strong>all school days</strong> to mush them together.";
           return;
         }
         if (p.filter_date) {
-          el("scopeLabel").innerHTML = `Filter: <strong>${formatDay(p.filter_date)}</strong> only. Samples use the Pi’s date and clock for morning, lunch, and evening.`;
+          el("scopeLabel").innerHTML = `Looking at <strong>${formatDay(p.filter_date)}</strong> only. Each color card is morning, lunch, or evening.`;
         } else {
-          el("scopeLabel").innerHTML = `Filter: <strong>all days</strong> combined — one average for each time of day (morning, lunch, evening) across every date you have logged.`;
+          el("scopeLabel").innerHTML = `Mixing <strong>every saved day</strong> into one average for morning, lunch, and evening.`;
         }
       }
       function updateExperimentTable(p) {
@@ -1294,7 +1517,7 @@
         const sel = el("expDate");
         if (!sel) return;
         const keep = selectedChartDate;
-        const opts = [{ v: "all", t: "All days (averaged per time of day)" }].concat(
+        const opts = [{ v: "all", t: "All school days (mixed together)" }].concat(
           (availableDates || []).map((d) => ({ v: d, t: formatDay(d) + "  (" + d + ")" }))
         );
         sel.innerHTML = opts
@@ -1315,12 +1538,12 @@
         if (sub) {
           if (!avail.length) {
             sub.textContent =
-              "After you log data on the Pi, rooms will rank here by average score. Higher = cleaner. Three columns: morning, lunch, and evening.";
+              "When the Pi saves air checks, each room pops up here. Bigger points = cleaner air. The three bands are morning, lunch, and evening.";
           } else if (payload.filter_date) {
-            sub.innerHTML = `Averages for <strong>${formatDay(payload.filter_date)}</strong> only. Ranks: cleanest at the top in each column. Scores: 0–100.`;
+            sub.innerHTML = `Only <strong>${formatDay(payload.filter_date)}</strong>. Top of each list = cleanest room for that time. Still 0–100 points.`;
           } else {
             sub.textContent =
-              "Averaged over all of your saved days, by time of day. Ranks: cleanest at the top. Scores: 0–100.";
+              "Mixing every day you have saved. Top of each list = cleanest room for that time of day. Still 0–100 points.";
           }
         }
         const periods = payload.periods || ["Morning", "Lunch", "Evening"];
@@ -1340,7 +1563,7 @@
               const mark = `<span class="rmed" aria-label="Rank ${i + 1}">${i + 1}</span>`;
               return `<li class="rli">${mark}<span class="rn">${escapeHtml(row.room)}</span><span class="rpt">${Number(
                 row.v
-              ).toFixed(1)}</span> <span class="rpt-lbl">pts</span></li>`;
+              ).toFixed(1)}</span> <span class="rpt-lbl">points</span></li>`;
             })
             .join("");
           const inner =
@@ -1388,16 +1611,18 @@
       function setChip(q) {
         if (q === "good") {
           chip.className = "chip good";
-          chip.innerHTML = '<span class="dot" style="background: var(--good)"></span>Good air quality';
+          chip.innerHTML =
+            '<span class="dot" style="background: var(--good)"></span>Nice! Air looks pretty clean';
         } else if (q === "moderate") {
           chip.className = "chip moderate";
-          chip.innerHTML = '<span class="dot" style="background: #ea580c"></span>Moderate';
+          chip.innerHTML = '<span class="dot" style="background: #ea580c"></span>Okay — could be better';
         } else if (q === "bad") {
           chip.className = "chip bad";
-          chip.innerHTML = '<span class="dot" style="background: var(--bad)"></span>Consider fresh air / ventilation';
+          chip.innerHTML =
+            '<span class="dot" style="background: var(--bad)"></span>Let’s get some fresh air if we can!';
         } else {
           chip.className = "chip wait";
-          chip.innerHTML = '<span class="dot" style="background: #a8a29e"></span>Sensor warming up…';
+          chip.innerHTML = '<span class="dot" style="background: #a8a29e"></span>Warming up the sensor…';
         }
       }
       function setSensorSourceIndicator(st) {
@@ -1410,20 +1635,20 @@
         const live = st.data_source === "live";
         if (st.data_source === "simulated") {
           box.className = "sensor-source-indicator sensor-source-indicator--sim";
-          tag.textContent = "Not the hardware";
-          title.textContent = "These numbers are simulated (not from the BME680 chip).";
+          tag.textContent = "Pretend mode";
+          title.textContent = "These numbers are pretend so the page works without the box.";
           sub.textContent =
-            "To use the real sensor: set sensors.dry_run to false in config.yaml, remove env SENSORS_DRY_RUN, and check I2C — on the Pi run: i2cdetect -y 1 and look for 76 or 77.";
+            "For real air: plug in the sensor on the Pi, set dry_run to false in config, and ask a teacher to check I2C (i2cdetect should show 76 or 77).";
         } else {
           box.className = "sensor-source-indicator sensor-source-indicator--live";
-          tag.textContent = "From your sensor";
-          title.textContent = "This live block uses real readings from the BME680 on the Pi (I2C).";
+          tag.textContent = "Real sensor";
+          title.textContent = "These numbers come straight from the air chip on the Raspberry Pi!";
           if (s.quality && s.gas_stabilized === false) {
             sub.textContent =
-              "Gas heater still warming: temperature & humidity are already from the sensor; the score will follow the gas reading when it stabilizes.";
+              "The little heater is still waking up—temperature and humidity are already real; the big score will settle in under a minute.";
           } else {
             sub.textContent =
-              "Temperature, humidity, pressure, and gas resistance are read from the physical sensor, not pre-made test values.";
+              "Temperature, wetness in the air, pressure, and the gas “sniff” all come from the real world, not made-up math.";
           }
         }
         box.setAttribute("aria-label", live ? "Data source: real BME680 sensor" : "Data source: simulated, not the chip");
@@ -1454,7 +1679,7 @@
             if (st.data_source === "live" && s.quality && s.gas_stabilized === false) {
               warm.style.display = "block";
               warm.textContent =
-                "Gas sensor is still heating up—temperature and humidity are live. The air score will track the gas reading as soon as it stabilizes (often under a minute).";
+                "The air “sniff” oven is still heating—temp and wetness are already real. The big score catches up in under a minute!";
             } else {
               warm.style.display = "none";
               warm.textContent = "";
@@ -1462,6 +1687,10 @@
           }
           if (s.quality) {
             setChip(s.quality);
+            const sc = s.score;
+            if (lastScoreVal !== null && lastScoreVal !== sc) bumpScore();
+            lastScoreVal = sc;
+            maybeCelebration(sc, s.quality);
             el("score").textContent = s.score;
             el("gas").textContent = (s.gas_ohms / 1000).toFixed(1) + " kΩ";
             el("temp").textContent = s.temperature_c + " °C";
@@ -1471,6 +1700,7 @@
             if (s.ts != null) pushLiveScorePoint(s.score, s.ts);
           } else {
             setChip(null);
+            lastScoreVal = null;
             el("score").textContent = "—";
             el("clock").textContent = "Last update: waiting for reading…";
           }
@@ -1481,6 +1711,7 @@
         }
       }
       roomSelect.addEventListener("change", async () => {
+        lastScoreVal = null;
         resetLiveTrendChart();
         await fetch("/api/room", {
           method: "POST",
@@ -1494,6 +1725,7 @@
           refetchChartOnly();
         });
       }
+      wireStatTaps();
       const livePollMs = {{ live_poll_ms|int }};
       setInterval(tick, livePollMs);
       tick();
