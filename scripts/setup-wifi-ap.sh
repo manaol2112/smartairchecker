@@ -188,7 +188,7 @@ fi
 # --- classic stack (hostapd) — used as primary or fallback -----------------
 setup_classic_ap() {
   log "Using hostapd + dnsmasq; static $STATIC_PREFIX.1/24 on $AP_IFACE"
-  log "Stopping NetworkManager for this session (re-enable: systemctl start NetworkManager)"
+  log "Stopping NetworkManager for this session. To get normal Wi-Fi back:  sudo $ROOT/scripts/restore-client-wifi.sh  (not just start NetworkManager — hostapd must stop first; see docs.)"
   log "  → wpa_supplicant…"
   systemctl stop wpa_supplicant@* 2>/dev/null || true
   systemctl stop wpa_supplicant 2>/dev/null || true
@@ -540,6 +540,9 @@ log "IP on $AP_IFACE: ${IP_AP:-unknown} — use in QR and for Flask: http://<tha
 log "Mode: $METHOD"
 log "Next: run (as normal user)  $ROOT/scripts/generate-demo-qrs.sh --detect"
 log "And run your app bound to 0.0.0.0, e.g.  SMARTAIR_PORT=$SMARTAIR_PORT ./run"
+if [[ "$METHOD" == "hostapd" ]]; then
+  log "To restore your home/ campus Wi-Fi (stop hotspot first):  sudo $ROOT/scripts/restore-client-wifi.sh"
+fi
 if [[ -z "${IP_AP:-}" ]]; then
   log "If IP is empty, wait a few seconds and: ip -4 a show $AP_IFACE"
 fi

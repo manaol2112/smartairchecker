@@ -48,6 +48,7 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 | `scripts/hotspot.env.example` | Copy to `.hotspot.env`, set `SMARTAIR_AP_SSID` and `SMARTAIR_AP_PASS` (8+ chars), or `SMARTAIR_AP_OPEN=1` for no password. Optional: `HOTSPOT_CAPTIVE=1` for auto-redirect / captive-style behavior. |
 | `scripts/setup-wifi-ap.sh` | On the Pi, installs/configures a hotspot. Prefers **NetworkManager** + `nmcli` when available (typical on Raspberry Pi OS **Bookworm desktop**). If `nmcli` reports success but the interface never reaches real **AP** mode (see `verify-hotspot`), it **automatically falls back** to **hostapd + dnsmasq** and static `192.168.4.1/24`. Otherwise uses hostapd when NM is off or you set `HOTSPOT_USE_CLASSIC=1`. |
 | `scripts/generate-demo-qrs.sh` | Creates `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` plus a small text file with the URL. |
+| `scripts/restore-client-wifi.sh` | Stops `hostapd` / `dnsmasq` and restarts **NetworkManager** so you can use normal Wi‑Fi again (run after a hostapd-based hotspot; see below). |
 
 ## One command (on the Pi)
 
@@ -139,7 +140,8 @@ If your USB Wi-Fi is **`wlan1`**, set in `.hotspot.env`: `AP_IFACE=wlan1`
 
 ## If `nmcli` is not used (hostapd path)
 
-- The script **stops** `NetworkManager` and `wpa_supplicant` only for that session to free `wlan0`. It does **not** permanently disable NetworkManager. To get desktop/guest Wi-Fi back: `sudo systemctl start NetworkManager` (or reboot).
+- The script **stops** (and in difficult cases may **kill**) `NetworkManager` so `hostapd` can use `wlan0`. It does **not** run `systemctl disable NetworkManager`.
+- **Why `sudo systemctl start NetworkManager` does not bring Wi‑Fi back by itself:** after setup, **`hostapd` is still running** and keeps `wlan0` in **AP mode**. NetworkManager cannot manage a card that is already an access point. You must **stop the hotspot first**, then start NM. One command from the project root: **`sudo ./scripts/restore-client-wifi.sh`**. It stops `hostapd` and `dnsmasq`, flushes the static demo IP, runs **`systemctl reset-failed NetworkManager`** (needed after a force kill), then starts NetworkManager. After that, use the desktop or `nmtui` / `nmcli` to join your home network. To run the demo again: **`./setuphotspot`**. The setup also **`enable`s `hostapd` and `dnsmasq`** so the hotspot can come back on reboot — to avoid that, run **`sudo systemctl disable hostapd dnsmasq`** when you do not need the AP at every boot.
 - If the script **seemed to freeze** on “Stopping NetworkManager…”, a plain `systemctl stop NetworkManager` can take **a long time** on some systems. The setup script now uses a **non-blocking** stop first, then a time-limited wait, and only then a force kill. If you ever need to unblock by hand, in a second terminal run: `sudo systemctl stop NetworkManager` (or `sudo systemctl kill NetworkManager`).
 - You need a **country code** in hostapd; set `WIFI_COUNTRY` in `.hotspot.env` before running.
 - If `dhcpcd` is not your distro’s network manager, the static-IP block may not apply. Prefer the **NetworkManager** path (desktop Pi OS) for fewer surprises, or set `HOTSPOT_USE_CLASSIC=0` and ensure NM is started.
