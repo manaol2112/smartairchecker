@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Run the buzzer self-test (same as: python3 scripts/test_buzzer.py)
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+if [[ -x "$ROOT/.venv/bin/python3" ]]; then
+  exec "$ROOT/.venv/bin/python3" "$ROOT/scripts/test_buzzer.py" "$@"
+else
+  exec python3 "$ROOT/scripts/test_buzzer.py" "$@"
+fi

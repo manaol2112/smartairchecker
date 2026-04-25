@@ -50,7 +50,10 @@ If the sound is too harsh or quiet, try **2000**–**4000** Hz, or set `pattern:
 
 From the project folder, with `gpio` permissions or `sudo`::
 
-  .venv/bin/python3 scripts/test_buzzer.py
+  ./test_buzzer
+  # same as:  .venv/bin/python3 scripts/test_buzzer.py
+
+If the shell says **“Permission denied”**, the script is not marked executable. After `git pull`, run: `chmod +x test_buzzer scripts/test_buzzer.py` (or the files were updated in the repo to be `+x`).
 
 You should get three short beeps, then a longer tone if `kind: passive` is set. If nothing is heard, re-check VCC, GND, the signal wire on `gpio.buzzer` (default BCM 18), and `buzzer.enabled` / `buzzer.kind` in `config.yaml`.
 

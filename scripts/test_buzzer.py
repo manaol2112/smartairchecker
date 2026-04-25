@@ -4,8 +4,9 @@ Play a short beep test using ``config.yaml`` (same pins and buzzer kind as the a
 
 **On the Raspberry Pi**, from the project directory::
 
+  ./test_buzzer
   .venv/bin/python3 scripts/test_buzzer.py
-  # or, if the gpio group is not set up yet:
+  # if the gpio group is not set up yet:
   sudo -E .venv/bin/python3 scripts/test_buzzer.py
 
 **Passive** (``buzzer.kind: passive``) uses a tone; **active** uses DC on/off.

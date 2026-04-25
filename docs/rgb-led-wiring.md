@@ -46,7 +46,10 @@ A convenient layout is to share **one GND** with the BME680 GND and the LED **GN
 
 From the project folder::
 
-  .venv/bin/python3 scripts/test_rgb_led.py
+  ./test_rgb_led
+  # same as:  .venv/bin/python3 scripts/test_rgb_led.py
+
+If you see **“Permission denied”**, run `chmod +x test_rgb_led scripts/test_rgb_led.py` (or `git pull` the version that has execute bits on those files).
 
 This cycles through red, green, blue, then **good** (green), **moderate** (amber), **bad** (red) like the live app. If a channel is wrong, swap the matching `rgb_red` / `rgb_green` / `rgb_blue` BCM values in `config.yaml` to match the module’s **R / G / B** labels. Use `sudo -E` if you get a GPIO permission error.
 

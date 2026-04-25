@@ -5,6 +5,7 @@ Cycle the RGB module through pure R, G, B, then the app colors (amber / red / gr
 Uses ``config.yaml`` → ``gpio`` (``rgb_red``, ``rgb_green``, ``rgb_blue``, ``common_anode``).
 Run **on the Raspberry Pi** from the project folder::
 
+  ./test_rgb_led
   .venv/bin/python3 scripts/test_rgb_led.py
   # or, if the gpio group is not set up yet:
   sudo -E .venv/bin/python3 scripts/test_rgb_led.py

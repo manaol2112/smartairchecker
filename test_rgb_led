@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Run the RGB self-test (same as: python3 scripts/test_rgb_led.py)
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+if [[ -x "$ROOT/.venv/bin/python3" ]]; then
+  exec "$ROOT/.venv/bin/python3" "$ROOT/scripts/test_rgb_led.py" "$@"
+else
+  exec python3 "$ROOT/scripts/test_rgb_led.py" "$@"
+fi
