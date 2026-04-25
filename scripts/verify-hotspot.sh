@@ -64,6 +64,21 @@ else
 fi
 
 echo ""
+echo "=== 2c) Open vs password (hostapd) ==="
+if [[ -f /etc/hostapd/hostapd.conf ]]; then
+  if grep -qE '^[[:space:]]*wpa=0' /etc/hostapd/hostapd.conf 2>/dev/null; then
+    echo "hostapd has wpa=0 → this SSID is OPEN (no passphrase). If the phone still shows a key icon, use Forget on that network and rejoin."
+  else
+    echo "hostapd has WPA → the phone will ask for SMARTAIR_AP_PASS from .hotspot.env (8+ characters)."
+  fi
+  if ! systemctl is-active --quiet hostapd 2>/dev/null; then
+    echo "  (hostapd is not running — another stack may be active; the file above may be stale.)"
+  fi
+else
+  echo "No /etc/hostapd/hostapd.conf — you may be on the NetworkManager hotspot (WPA2 from nmcli) only."
+fi
+
+echo ""
 echo "=== 3) hostapd (if you use the classic / fallback stack) ==="
 if systemctl is-active --quiet hostapd 2>/dev/null; then
   echo "hostapd: active"

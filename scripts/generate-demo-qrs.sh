@@ -27,6 +27,12 @@ if [[ -f "$STATE_FILE" ]]; then
   set +a
 fi
 
+SMARTAIR_AP_OPEN="${SMARTAIR_AP_OPEN:-0}"
+# shellcheck source=hotspot-normalize.sh
+# shellcheck disable=SC1090
+. "$ROOT/scripts/hotspot-normalize.sh"
+smartair_resolve_open_var
+
 SMARTAIR_AP_SSID="${SMARTAIR_AP_SSID:-SmartAirDemo}"
 SMARTAIR_AP_PASS="${SMARTAIR_AP_PASS:-changeMe99}"
 SMARTAIR_PORT="${SMARTAIR_PORT:-5001}"
@@ -82,7 +88,7 @@ escape_wifi_pass() {
 }
 
 P_ESC="$(escape_wifi_pass "$SMARTAIR_AP_PASS")"
-if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+if [[ "$SMARTAIR_AP_OPEN" == "1" ]]; then
   WIFI_STR="WIFI:T:nopass;S:${SMARTAIR_AP_SSID};P:;;"
 else
   WIFI_STR="WIFI:T:${WIFI_TYPE};S:${SMARTAIR_AP_SSID};P:${P_ESC};;"

@@ -51,8 +51,13 @@ fi
 set -a
 source "$ENVF"
 set +a
+SMARTAIR_AP_OPEN="${SMARTAIR_AP_OPEN:-0}"
+# shellcheck source=scripts/hotspot-normalize.sh
+# shellcheck disable=SC1090
+. "$ROOT/scripts/hotspot-normalize.sh"
+smartair_resolve_open_var
 SMARTAIR_AP_PASS="${SMARTAIR_AP_PASS:-}"
-if [[ "${SMARTAIR_AP_OPEN:-0}" != "1" ]] && [[ ${#SMARTAIR_AP_PASS} -lt 8 ]]; then
+if [[ "$SMARTAIR_AP_OPEN" != "1" ]] && [[ ${#SMARTAIR_AP_PASS} -lt 8 ]]; then
   echo "[setuphotspot] SMARTAIR_AP_PASS in .hotspot.env must be at least 8 characters, or set SMARTAIR_AP_OPEN=1 for an open network. Edit: $ENVF" >&2
   exit 1
 fi

@@ -28,6 +28,11 @@ fi
 
 SMARTAIR_AP_SSID="${SMARTAIR_AP_SSID:-SmartAirDemo}"
 SMARTAIR_AP_PASS="${SMARTAIR_AP_PASS:-changeMe99}"
+SMARTAIR_AP_OPEN="${SMARTAIR_AP_OPEN:-0}"
+# shellcheck source=scripts/hotspot-normalize.sh
+# shellcheck disable=SC1090
+. "${ROOT}/scripts/hotspot-normalize.sh"
+smartair_resolve_open_var
 WIFI_COUNTRY="${WIFI_COUNTRY:-US}"
 AP_IFACE="${AP_IFACE:-wlan0}"
 # 2.4 GHz channel; 1 is widely compatible. Override with AP_CHANNEL=6 in .hotspot.env
@@ -43,7 +48,7 @@ if [[ $(id -u) -ne 0 ]]; then
   die "Run with sudo, e.g.  sudo -E $ROOT/scripts/setup-wifi-ap.sh"
 fi
 
-if [[ "${SMARTAIR_AP_OPEN:-0}" != "1" ]] && ((${#SMARTAIR_AP_PASS} < 8)); then
+if [[ "$SMARTAIR_AP_OPEN" != "1" ]] && ((${#SMARTAIR_AP_PASS} < 8)); then
   die "SMARTAIR_AP_PASS must be at least 8 characters (WPA2), or set SMARTAIR_AP_OPEN=1 for an open network (no password)."
 fi
 
@@ -143,7 +148,7 @@ elif require_bin nmcli; then
   fi
 fi
 
-if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+if [[ "$SMARTAIR_AP_OPEN" == "1" ]]; then
   log "SMARTAIR_AP_OPEN=1 — open network (no WPA); using hostapd + dnsmasq (not nmcli)"
   use_nm=0
 fi
@@ -233,7 +238,7 @@ dhcp-option=3,${STATIC_PREFIX}.1
 dhcp-option=6,${STATIC_PREFIX}.1
 DNS_EOF
   fi
-  if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+  if [[ "$SMARTAIR_AP_OPEN" == "1" ]]; then
     log "SMARTAIR_AP_OPEN=1 — open access point (no password); wpa=0"
     cat >/etc/hostapd/hostapd.conf <<HPEOF
 # SmartAir (open / no WPA)
@@ -309,6 +314,9 @@ HPEOF
     if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
       log "ERROR: dnsmasq is not running — clients will not get an IP; Wi-Fi will show 'unable to connect' on many phones. journal:"
       journalctl -u dnsmasq -n 25 --no-pager 2>&1 | sed 's/^/  /' || true
+      if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+        log "If you see 'address already in use' or port 53 errors, set HOTSPOT_CAPTIVE=0 in .hotspot.env and re-run to test; see docs/pi-wifi-hotspot.md"
+      fi
     fi
     if ! systemctl start hostapd 2>/dev/null; then
       log "systemctl start hostapd failed — will try hostapd -B if still down…"
@@ -441,7 +449,7 @@ if [[ -n "${IP_AP:-}" ]]; then
     echo "AP_IFACE=$AP_IFACE"
     echo "SMARTAIR_PORT=$SMARTAIR_PORT"
     echo "HOTSPOT_CAPTIVE=${HOTSPOT_CAPTIVE:-0}"
-    echo "SMARTAIR_AP_OPEN=${SMARTAIR_AP_OPEN:-0}"
+    echo "SMARTAIR_AP_OPEN=$SMARTAIR_AP_OPEN"
     echo "SMARTAIR_URL=$PUB_URL"
   } >"$OUT_STATE"
   if [[ -n "${SUDO_USER:-}" && -d "$ROOT" ]]; then
@@ -449,10 +457,19 @@ if [[ -n "${IP_AP:-}" ]]; then
   fi
 fi
 
-if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+if [[ "$SMARTAIR_AP_OPEN" == "1" ]]; then
   log "Done. Hotspot: SSID=\"$SMARTAIR_AP_SSID\" (open, no password)"
+  if [[ -f /etc/hostapd/hostapd.conf ]] && ! grep -qE '^[[:space:]]*wpa=0' /etc/hostapd/hostapd.conf; then
+    log "ERROR: you asked for an open AP but /etc/hostapd/hostapd.conf has no wpa=0. Re-run ./setuphotspot from the project root with SMARTAIR_AP_OPEN=1 in .hotspot.env"
+  fi
+  log "Phones often cache the old network as \"secured\": on each device use Forget / Remove, then rejoin this SSID — it should not ask for a password."
 else
   log "Done. Hotspot should be: SSID=\"$SMARTAIR_AP_SSID\" (WPA2)"
+  if systemctl is-active --quiet hostapd 2>/dev/null && [[ -f /etc/hostapd/hostapd.conf ]]; then
+    if grep -qE '^[[:space:]]*wpa=0' /etc/hostapd/hostapd.conf; then
+      log "NOTE: hostapd has wpa=0 (open) but SMARTAIR_AP_OPEN is not 1 in the env you used. Check .hotspot.env and re-run, or the phone will expect WPA."
+    fi
+  fi
 fi
 if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" && -n "${IP_AP:-}" ]]; then
   log "Captive mode: run ./run (loads .hotspot.env), then on a phone try http://$IP_AP/  (port 80 is redirected to the app)"

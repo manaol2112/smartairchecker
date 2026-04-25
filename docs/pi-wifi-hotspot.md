@@ -23,6 +23,22 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 
 **Rules and venues:** open access points may be restricted or inappropriate in some places; use only where you are allowed to run a dedicated demo network.
 
+### Troubleshooting: phone still asks for a password, or stuck on “Connecting”
+
+**Still asks for a password**
+
+- **`SMARTAIR_AP_OPEN=1` must be in `.hotspot.env` (not only in `hotspot.env.example`)**, with **no** `#` in front, then run **`./setuphotspot` again** from the project folder. The value can also be `yes` or `true` (case does not matter).
+- **Forget / remove the saved network on the phone** and scan again. If you used to use WPA, the phone often keeps the old “secured” profile for the same SSID.
+- Run on the Pi: `sudo ./scripts/verify-hotspot.sh` and read **“2c) Open vs password”**. If the Pi still has `wpa=2` in `/etc/hostapd/hostapd.conf`, the AP is not open. Use **`HOTSPOT_USE_CLASSIC=1`** in `.hotspot.env` to force the hostapd path, then re-run setup.
+- If you are on the **NetworkManager** (`nmcli`) path only, the hotspot is **always** WPA2 with a key — for an open network you need **hostapd** (e.g. `HOTSPOT_USE_CLASSIC=1` and `SMARTAIR_AP_OPEN=1`).
+
+**Stuck on “Connecting” (often before an IP is assigned)**
+
+- Usually **DHCP did not complete**: **`dnsmasq` is not running**, the AP interface has no **`192.168.4.1`**, or **`HOTSPOT_CAPTIVE=1`** is enabled but `dnsmasq` failed to bind (port **53**). **Try `HOTSPOT_CAPTIVE=0`**, re-run **`./setuphotspot`**, then `sudo journalctl -u dnsmasq -n 30`.
+- **Password:** must be **at least 8 characters** and match **`.hotspot.env` exactly** (no extra space; avoid weird symbols).
+- **Channel:** if one channel is bad in your area, set **`AP_CHANNEL=6` or `11`** in `.hotspot.env` and re-run.
+- The Pi’s **on-board Wi-Fi** in AP mode is not always solid; a **USB Wi-Fi dongle** and **`AP_IFACE=wlan1`** often fixes “connecting” loops.
+
 ## What the scripts do
 
 | Script | Purpose |
