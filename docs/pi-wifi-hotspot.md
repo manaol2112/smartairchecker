@@ -21,6 +21,14 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 
 **Reality check:** different phones and OS versions still behave differently. Some show a **“Sign in to network”** sheet, others open a browser tab, and some only show a notification—**full auto-open of your page is not guaranteed**. A printed **URL QR** or poster text remains the most reliable fallback.
 
+**Checklist: auto-redirect (captive) when the phone is already on your Wi-Fi**
+
+1. In **`.hotspot.env`:** `HOTSPOT_CAPTIVE=1` (and usually `HOTSPOT_USE_CLASSIC=1` for the full hostapd path).  
+2. Re-run **`./setuphotspot`** on the Pi so **dnsmasq** resolves *all* hostnames to the Pi and **iptables** sends **:80** to your Flask port.  
+3. Run **`./run`**. On startup, the app should print **`Captive-style redirects: enabled → http://...`**; if you do not see that, set **`HOTSPOT_CAPTIVE=1`**, or in **`config.yaml`** set **`server.captive_portal: true`**, and confirm **`.hotspot.state`** (created by setup) includes `HOTSPOT_CAPTIVE=1`.  
+4. **Not everything auto-opens:** if the phone uses **HTTPS** to Google/Apple (common on new Android), the Pi **cannot** fake that without its own CA — the OS may only show a **“Sign in to network”** notification; the user can tap that to open a mini-browser (often the redirect works).  
+5. If DHCP broke when captive was on, you may have set **`HOTSPOT_CAPTIVE=0`**; see *Troubleshooting* above, then re-enable when stable.
+
 **Rules and venues:** open access points may be restricted or inappropriate in some places; use only where you are allowed to run a dedicated demo network.
 
 ### Troubleshooting: phone still asks for a password, or stuck on “Connecting”

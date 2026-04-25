@@ -94,11 +94,14 @@ def create_app() -> Flask:
 
 
 def _load_captive_from_hotspot_files() -> None:
-    """Apply HOTSPOT_CAPTIVE from .hotspot.env or .hotspot.state so ./run matches ./setuphotspot."""
-    if os.environ.get("HOTSPOT_CAPTIVE") or os.environ.get("SMARTAIR_CAPTIVE"):
+    """Apply HOTSPOT_CAPTIVE from .hotspot.state / .hotspot.env so ./run matches ./setuphotspot."""
+    if (os.environ.get("HOTSPOT_CAPTIVE") or "").lower() in ("1", "true", "yes"):
         return
+    if (os.environ.get("SMARTAIR_CAPTIVE") or "").lower() in ("1", "true", "yes"):
+        return
+    # Last setup wins in .hotspot.state; read that before .hotspot.env
     root = Path(__file__).resolve().parent
-    for name in (".hotspot.env", ".hotspot.state"):
+    for name in (".hotspot.state", ".hotspot.env"):
         p = root / name
         if not p.is_file():
             continue
@@ -107,10 +110,11 @@ def _load_captive_from_hotspot_files() -> None:
             if not line.startswith("HOTSPOT_CAPTIVE="):
                 continue
             v = line.split("=", 1)[1].strip().strip('"').strip("'")
-            if v in ("1", "true", "yes"):
+            if v.lower() in ("1", "true", "yes"):
                 os.environ["HOTSPOT_CAPTIVE"] = "1"
                 os.environ["SMARTAIR_CAPTIVE"] = "1"
-            return
+                return
+            # explicit 0 / false: keep scanning the other file
 
 
 def _live_poll_ms() -> int:

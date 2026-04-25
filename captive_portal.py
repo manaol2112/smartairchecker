@@ -1,34 +1,38 @@
 """
 Optional captive-style redirects so phones on the SmartAir hotspot can open the dashboard.
 
-Set ``HOTSPOT_CAPTIVE=1`` in ``.hotspot.env`` (or ``SMARTAIR_CAPTIVE=1``), or
-``server.captive_portal: true`` in ``config.yaml``.
+Set ``HOTSPOT_CAPTIVE=1`` in ``.hotspot.env`` and re-run ``./setuphotspot`` (DNS on AP + :80
+→ Flask). Or set ``server.captive_portal: true`` in ``config.yaml`` if you are sure the
+network layer is in captive mode. See ``docs/pi-wifi-hotspot.md``.
 
-Requires the hotspot to be set up with ``HOTSPOT_CAPTIVE=1`` in
-``./setuphotspot`` (DNS on the AP + iptables :80 → Flask). See
-``docs/pi-wifi-hotspot.md``.
+Full automatic browser open is not guaranteed: many phones use **HTTPS** checks that the Pi
+cannot answer without a certificate, or the OS only shows a “Sign in to network” notification.
 """
 from __future__ import annotations
 
 import os
+from html import escape
 from pathlib import Path
 
-from flask import Flask, redirect
+from flask import Flask, Response, make_response, redirect, request
 
-# Paths used by Android / iOS / Windows for connectivity checks
+# OS connectivity probes; DNS is hijacked to the Pi, requests hit this app on :80 → SMARTAIR_PORT
 _CAPTIVE_PATHS: tuple[str, ...] = (
     "/generate_204",
     "/gen_204",
-    "/hotspot-detect.html",
-    "/connecttest.txt",
+    "/connectivitycheck/generate_204",  # some builds
+    "/hotspot-detect.html",  # iOS/legacy — also handled with HTML for CNA
+    "/connecttest.txt",  # Windows
     "/redirect",
     "/canonical.html",
     "/ncsi.txt",
+    "/ncsi/ncsi.txt",  # Windows variants
     "/success.txt",
     "/connectivity-check.html",
     "/kindle-wifi/wifiredirect.html",
     "/check_network_status.txt",
     "/captive-portal/ok",
+    "/library/test/success.html",  # some Apple / embedded checks
 )
 
 _ROOT = Path(__file__).resolve().parent
@@ -59,10 +63,24 @@ def _captive_url() -> str:
     return f"http://{ap}:{port}/"
 
 
+def _captive_in_state_file() -> bool:
+    p = _ROOT / ".hotspot.state"
+    if not p.is_file():
+        return False
+    for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+        s = line.strip()
+        if s.startswith("HOTSPOT_CAPTIVE="):
+            v = s.split("=", 1)[1].strip().lower()
+            return v in ("1", "true", "yes", "on")
+    return False
+
+
 def _captive_enabled() -> bool:
     for key in ("HOTSPOT_CAPTIVE", "SMARTAIR_CAPTIVE"):
         if (os.environ.get(key) or "").lower() in ("1", "true", "yes"):
             return True
+    if _captive_in_state_file():
+        return True
     try:
         from settings import load_config
 
@@ -72,6 +90,25 @@ def _captive_enabled() -> bool:
     except OSError:
         pass
     return False
+
+
+def _apple_portal_page(target: str) -> Response:
+    """iOS Captive Network Assistant often follows 302, but HTML+meta refresh is more reliable."""
+    tq = escape(target, quote=True)
+    body = f"""<!doctype html>
+<html><head>
+<meta http-equiv="refresh" content="0;url={tq}">
+<meta name="viewport" content="width=device-width">
+<title>Network login</title>
+</head><body>
+<p>Redirecting to the project page…</p>
+<p><a href="{tq}">Open Smart Air</a> if you are not redirected.</p>
+</body></html>"""
+    r = make_response(body, 200)
+    r.headers["Content-Type"] = "text/html; charset=utf-8"
+    r.headers["X-WISPr-Location-URL"] = target  # some stacks look for WISPr
+    r.headers["Cache-Control"] = "no-store"
+    return r
 
 
 def register_captive_routes(app: Flask) -> None:
@@ -84,12 +121,21 @@ def register_captive_routes(app: Flask) -> None:
     target = _captive_url()
 
     def _go():
-        return redirect(target, 302)
+        p = request.path or "/"
+        # Apple: avoid matching “Success” body that iOS uses to mean “has internet”
+        if p.rstrip("/") in ("/hotspot-detect.html",) or p.endswith("hotspot-detect.html"):
+            return _apple_portal_page(target)
+        r = redirect(target, 302)
+        r.headers["X-WISPr-Location-URL"] = target
+        return r
 
     for i, path in enumerate(_CAPTIVE_PATHS):
         app.add_url_rule(path, f"_captive_{i}", _go, methods=["GET", "HEAD"])
 
-    print(f"  Captive-style redirects: enabled → {target} (OS connectivity probes)")
+    print(
+        f"  Captive-style redirects: enabled → {target}  "
+        f"(add HOTSPOT_CAPTIVE=1 + re-run setuphotspot for DNS+ :80; HTTPS checks may not auto-open a browser)\n"
+    )
 
 
 __all__ = ["register_captive_routes", "_captive_url"]
