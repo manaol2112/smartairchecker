@@ -90,6 +90,27 @@ ap_mode_is_up() {
   iw dev "$AP_IFACE" info 2>/dev/null | grep -qi "type ap"
 }
 
+# UFW/iptables: phones need UDP 67 to the Pi; some images have DROP in INPUT
+hotspot_allow_dhcp_firewall() {
+  if require_bin ufw; then
+    if ufw status 2>/dev/null | grep -qiE 'Status:\s*active'; then
+      ufw allow in on "$AP_IFACE" to any port 67 proto udp 2>&1 | sed 's/^/  [ufw] /' || true
+      if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+        ufw allow in on "$AP_IFACE" to any port 53 proto udp 2>&1 | sed 's/^/  [ufw] /' || true
+      fi
+    fi
+  fi
+  if require_bin iptables; then
+    if iptables -L INPUT 2>/dev/null | head -1 | grep -qE 'policy (DROP|REJECT)'; then
+      if ! iptables -C INPUT -i "$AP_IFACE" -p udp -m udp --dport 67 -j ACCEPT 2>/dev/null; then
+        if iptables -I INPUT 1 -i "$AP_IFACE" -p udp -m udp --dport 67 -j ACCEPT 2>/dev/null; then
+          log "iptables: added INPUT accept for UDP 67 on $AP_IFACE (firewall was DROP/REJECT)"
+        fi
+      fi
+    fi
+  fi
+}
+
 # Captive-style demo: send phones’ HTTP probes to Flask without binding :80
 captive_iptables() {
   if [[ "${HOTSPOT_CAPTIVE:-0}" != "1" ]]; then
@@ -224,6 +245,12 @@ DHCPEOF
     fi
   fi
   mkdir -p /etc/dnsmasq.d
+  # bind-interfaces is more reliable for DHCP in AP mode; if dnsmasq fails to start, set HOTSPOT_DNSMASQ_BIND_DYNAMIC=1 in .hotspot.env
+  if [[ "${HOTSPOT_DNSMASQ_BIND_DYNAMIC:-0}" == "1" ]]; then
+    H_DNS_BIND="bind-dynamic"
+  else
+    H_DNS_BIND="bind-interfaces"
+  fi
   if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
     log "HOTSPOT_CAPTIVE=1 — dnsmasq answers DNS on :53 (${STATIC_PREFIX}.1 only); all names → Pi (see docs/pi-wifi-hotspot.md)"
     cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
@@ -231,7 +258,7 @@ DHCPEOF
 port=53
 no-resolv
 interface=${AP_IFACE}
-bind-dynamic
+${H_DNS_BIND}
 listen-address=${STATIC_PREFIX}.1
 domain-needed
 bogus-priv
@@ -245,13 +272,16 @@ DNS_EOF
     cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
 # SmartAir — DHCP only (port=0) so we do not bind DNS :53 (avoids clash with systemd-resolved)
 port=0
+no-resolv
+# bookworm AP: try bind-interfaces; if dnsmasq fails, HOTSPOT_DNSMASQ_BIND_DYNAMIC=1 in .hotspot.env
 interface=${AP_IFACE}
-# bind-dynamic: more reliable on Pi than bind-interfaces if iface comes up late
-bind-dynamic
+${H_DNS_BIND}
+no-dhcp-interface=lo
 dhcp-authoritative
 dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
 dhcp-option=3,${STATIC_PREFIX}.1
 dhcp-option=6,${STATIC_PREFIX}.1
+# Uncomment on Pi to debug lease problems:  log-facility=/var/log/dnsmasq-dhcp.log  log-dhcp
 DNS_EOF
   fi
   if [[ "$SMARTAIR_AP_OPEN" == "1" ]]; then
@@ -325,15 +355,7 @@ HPEOF
     systemctl restart dhcpcd 2>/dev/null || true
     sleep 2
     ensure_classic_ap_ip
-    # Not captive: port=0; captive: :53 (see HOTSPOT_CAPTIVE) — if dnsmasq fails, check: journalctl -u dnsmasq
-    systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
-    if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
-      log "ERROR: dnsmasq is not running — clients will not get an IP; Wi-Fi will show 'unable to connect' on many phones. journal:"
-      journalctl -u dnsmasq -n 25 --no-pager 2>&1 | sed 's/^/  /' || true
-      if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
-        log "If you see 'address already in use' or port 53 errors, set HOTSPOT_CAPTIVE=0 in .hotspot.env and re-run to test; see docs/pi-wifi-hotspot.md"
-      fi
-    fi
+    # Start AP *before* dnsmasq: on many Pis, DHCP is unreliable if dnsmasq starts when wlan0 is not yet in AP mode
     if ! systemctl start hostapd 2>/dev/null; then
       log "systemctl start hostapd failed — will try hostapd -B if still down…"
     fi
@@ -352,19 +374,33 @@ HPEOF
     elif ! ap_mode_is_up; then
       log "hostapd is running but $AP_IFACE is not in AP mode yet. Driver issue? try USB Wi-Fi (AP_IFACE=wlan1)"
     fi
-    # hostapd (AP bring-up) often drops addresses — set ${STATIC_PREFIX}.1 again for dnsmasq
+    # AP bring-up can clear the address — re-apply, then start dnsmasq (DHCP) so phones get 192.168.4.x
     ensure_classic_ap_ip
+    hotspot_allow_dhcp_firewall
+    log "Starting dnsmasq (DHCP for phones) on $AP_IFACE — if this fails, phones show 'couldn't get an IP'…"
+    systemctl stop dnsmasq 2>/dev/null || true
+    systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
+    sleep 1
     if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
-      systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
+      log "ERROR: dnsmasq is not running — no DHCP for clients. journal:"
+      journalctl -u dnsmasq -n 35 --no-pager 2>&1 | sed 's/^/  /' || true
+      if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+        log "If you see 'address already in use' on port 53, set HOTSPOT_CAPTIVE=0 in .hotspot.env and re-run. See docs/pi-wifi-hotspot.md"
+      fi
+    else
+      log "dnsmasq is running — if phones still have no IP, run:  sudo ufw allow 67/udp,  and see journal if bind-interfaces failed"
     fi
     captive_iptables
   else
     service dhcpcd restart 2>/dev/null || true
     sleep 2
     ensure_classic_ap_ip
-    service dnsmasq restart 2>/dev/null || true
     service hostapd restart 2>/dev/null || true
     sleep 2
+    ensure_classic_ap_ip
+    hotspot_allow_dhcp_firewall
+    service dnsmasq stop 2>/dev/null || true
+    service dnsmasq start 2>/dev/null || true
     ensure_classic_ap_ip
     captive_iptables
   fi

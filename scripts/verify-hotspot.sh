@@ -55,6 +55,13 @@ else
 fi
 if systemctl is-active --quiet dnsmasq 2>/dev/null; then
   echo "dnsmasq: active (DHCP for clients OK)"
+  if command -v ss &>/dev/null; then
+    if ss -ulpen 2>/dev/null | grep -qE '(:67|bootps)'; then
+      echo "  something is listening for DHCP (udp 67) on the Pi: OK for phones"
+    else
+      echo "  WARNING: nothing is listening on UDP 67; phones may get 'no IP' — check: sudo journalctl -u dnsmasq -n 30"
+    fi
+  fi
 else
   if systemctl is-active --quiet hostapd 2>/dev/null; then
     echo "PROBLEM: dnsmasq is not active but hostapd is — clients will not get an IP. journal: journalctl -u dnsmasq -n 20"

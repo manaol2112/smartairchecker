@@ -39,6 +39,7 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 - **Password:** must be **at least 8 characters** and match **`.hotspot.env` exactly** (no extra space; avoid weird symbols).
 - **Channel:** if one channel is bad in your area, set **`AP_CHANNEL=6` or `11`** in `.hotspot.env` and re-run.
 - The Pi’s **on-board Wi-Fi** in AP mode is not always solid; a **USB Wi-Fi dongle** and **`AP_IFACE=wlan1`** often fixes “connecting” loops.
+- **“Couldn’t get an IP / IP configuration failure”** (Android / iOS): the phone joined the open AP but **dnsmasq did not hand out DHCP**. The setup now starts **hostapd before dnsmasq**, restarts **dnsmasq** after the AP is up, allows **UDP 67** in **ufw** when the firewall is on, and uses **`bind-interfaces`** for the AP (override with **`HOTSPOT_DNSMASQ_BIND_DYNAMIC=1`** in `.hotspot.env` if `dnsmasq` fails to start). Check **`sudo systemctl status dnsmasq`**, **`sudo journalctl -u dnsmasq -b`**, and **`sudo ./scripts/verify-hotspot.sh`** (see whether UDP 67 is listening).
 
 ## What the scripts do
 
