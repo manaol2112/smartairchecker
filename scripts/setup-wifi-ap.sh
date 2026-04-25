@@ -43,8 +43,8 @@ if [[ $(id -u) -ne 0 ]]; then
   die "Run with sudo, e.g.  sudo -E $ROOT/scripts/setup-wifi-ap.sh"
 fi
 
-if ((${#SMARTAIR_AP_PASS} < 8)); then
-  die "SMARTAIR_AP_PASS must be at least 8 characters (WPA2)."
+if [[ "${SMARTAIR_AP_OPEN:-0}" != "1" ]] && ((${#SMARTAIR_AP_PASS} < 8)); then
+  die "SMARTAIR_AP_PASS must be at least 8 characters (WPA2), or set SMARTAIR_AP_OPEN=1 for an open network (no password)."
 fi
 
 require_bin() { command -v "$1" &>/dev/null; }
@@ -76,6 +76,25 @@ ap_mode_is_up() {
     return 1
   fi
   iw dev "$AP_IFACE" info 2>/dev/null | grep -qi "type ap"
+}
+
+# Captive-style demo: send phones’ HTTP probes to Flask without binding :80
+captive_iptables() {
+  if [[ "${HOTSPOT_CAPTIVE:-0}" != "1" ]]; then
+    return 0
+  fi
+  if ! require_bin iptables; then
+    log "HOTSPOT_CAPTIVE=1 but iptables not found — install iptables to redirect :80 to :$SMARTAIR_PORT"
+    return 0
+  fi
+  while iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
+    iptables -t nat -D PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null || break
+  done
+  if ! iptables -t nat -A PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; then
+    log "WARNING: iptables redirect failed; HTTP on port 80 may not reach Flask"
+  else
+    log "Captive: TCP port 80 on $AP_IFACE → 127.0.0.1:$SMARTAIR_PORT (run ./run; .hotspot.env loads HOTSPOT_CAPTIVE for /generate_204 etc.)"
+  fi
 }
 
 nm_diag() {
@@ -124,6 +143,15 @@ elif require_bin nmcli; then
   fi
 fi
 
+if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+  log "SMARTAIR_AP_OPEN=1 — open network (no WPA); using hostapd + dnsmasq (not nmcli)"
+  use_nm=0
+fi
+if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+  log "HOTSPOT_CAPTIVE=1 — captive-style DNS + iptables need hostapd path; not using NetworkManager for this run"
+  use_nm=0
+fi
+
 # --- classic stack (hostapd) — used as primary or fallback -----------------
 setup_classic_ap() {
   log "Using hostapd + dnsmasq; static $STATIC_PREFIX.1/24 on $AP_IFACE"
@@ -156,7 +184,25 @@ nohook wpa_supplicant
 DHCPEOF
   fi
   mkdir -p /etc/dnsmasq.d
-  cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
+  if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+    log "HOTSPOT_CAPTIVE=1 — dnsmasq answers DNS on :53 (${STATIC_PREFIX}.1 only); all names → Pi (see docs/pi-wifi-hotspot.md)"
+    cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
+# SmartAir — DHCP + resolve all A records to the AP (captive-style demo)
+port=53
+no-resolv
+interface=${AP_IFACE}
+bind-dynamic
+listen-address=${STATIC_PREFIX}.1
+domain-needed
+bogus-priv
+dhcp-authoritative
+dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
+dhcp-option=3,${STATIC_PREFIX}.1
+dhcp-option=6,${STATIC_PREFIX}.1
+address=/#/${STATIC_PREFIX}.1
+DNS_EOF
+  else
+    cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
 # SmartAir — DHCP only (port=0) so we do not bind DNS :53 (avoids clash with systemd-resolved)
 port=0
 interface=${AP_IFACE}
@@ -167,18 +213,37 @@ dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
 dhcp-option=3,${STATIC_PREFIX}.1
 dhcp-option=6,${STATIC_PREFIX}.1
 DNS_EOF
-  # 64-hex wpa_psk avoids hostapd # comments and shell metacharacters in passwords; wpa_passphrase(8) from wpasupplicant
-  HAP_WPA_LINE="wpa_passphrase=${SMARTAIR_AP_PASS}"
-  if require_bin wpa_passphrase; then
-    if pmk=$(wpa_passphrase "$SMARTAIR_AP_SSID" "$SMARTAIR_AP_PASS" 2>/dev/null | sed -n 's/^[[:space:]]*psk=\([0-9a-f]\{64\}\)$/\1/p' | head -1) && [[ -n "$pmk" ]]; then
-      HAP_WPA_LINE="wpa_psk=$pmk"
-    else
-      log "wpa_passphrase: could not derive PSK; using wpa_passphrase= line in hostapd (avoid # in the password in .env or install wpasupplicant)"
-    fi
-  else
-    log "wpa_passphrase not found; install package wpasupplicant for the most reliable WPA2 password handling"
   fi
-  cat >/etc/hostapd/hostapd.conf <<HPEOF
+  if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+    log "SMARTAIR_AP_OPEN=1 — open access point (no password); wpa=0"
+    cat >/etc/hostapd/hostapd.conf <<HPEOF
+# SmartAir (open / no WPA)
+interface=${AP_IFACE}
+driver=nl80211
+ssid=${SMARTAIR_AP_SSID}
+hw_mode=g
+channel=${AP_CHANNEL}
+ieee80211n=1
+wmm_enabled=1
+beacon_int=100
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=0
+country_code=${WIFI_COUNTRY}
+HPEOF
+  else
+    # 64-hex wpa_psk avoids hostapd # comments; wpa_passphrase(8) from wpasupplicant
+    HAP_WPA_LINE="wpa_passphrase=${SMARTAIR_AP_PASS}"
+    if require_bin wpa_passphrase; then
+      if pmk=$(wpa_passphrase "$SMARTAIR_AP_SSID" "$SMARTAIR_AP_PASS" 2>/dev/null | sed -n 's/^[[:space:]]*psk=\([0-9a-f]\{64\}\)$/\1/p' | head -1) && [[ -n "$pmk" ]]; then
+        HAP_WPA_LINE="wpa_psk=$pmk"
+      else
+        log "wpa_passphrase: could not derive PSK; using wpa_passphrase= in hostapd (avoid # in the password, or install wpasupplicant)"
+      fi
+    else
+      log "wpa_passphrase not found; install wpasupplicant for the most reliable WPA2 password handling"
+    fi
+    cat >/etc/hostapd/hostapd.conf <<HPEOF
 # SmartAir
 interface=${AP_IFACE}
 driver=nl80211
@@ -199,6 +264,7 @@ wpa_pairwise=CCMP
 rsn_pairwise=CCMP
 country_code=${WIFI_COUNTRY}
 HPEOF
+  fi
   echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' >/etc/default/hostapd
   IP_AP="${STATIC_PREFIX}.1"
   METHOD="hostapd"
@@ -219,7 +285,7 @@ HPEOF
     systemctl restart dhcpcd 2>/dev/null || true
     sleep 2
     ensure_classic_ap_ip
-    # dnsmasq must not abort this script: port 53 often conflicts on Bookworm; smartair config uses port=0
+    # Not captive: port=0; captive: :53 (see HOTSPOT_CAPTIVE) — if dnsmasq fails, check: journalctl -u dnsmasq
     systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
     if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
       log "ERROR: dnsmasq is not running — clients will not get an IP; Wi-Fi will show 'unable to connect' on many phones. journal:"
@@ -243,9 +309,11 @@ HPEOF
     elif ! ap_mode_is_up; then
       log "hostapd is running but $AP_IFACE is not in AP mode yet. Driver issue? try USB Wi-Fi (AP_IFACE=wlan1)"
     fi
+    captive_iptables
   else
     service dnsmasq restart 2>/dev/null || true
     service hostapd restart 2>/dev/null || true
+    captive_iptables
   fi
 }
 
@@ -342,20 +410,34 @@ fi
 OUT_STATE="${SMARTAIR_AP_STATE_PATH:-$ROOT/.hotspot.state}"
 if [[ -n "${IP_AP:-}" ]]; then
   umask 077
+  if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+    PUB_URL="http://${IP_AP}/"
+  else
+    PUB_URL="http://${IP_AP}:${SMARTAIR_PORT}/"
+  fi
   {
     echo "# smartair: written by setup-wifi-ap.sh — $(date -Iseconds 2>/dev/null || date)"
     echo "AP_IP=$IP_AP"
     echo "HOTSPOT_METHOD=$METHOD"
     echo "AP_IFACE=$AP_IFACE"
     echo "SMARTAIR_PORT=$SMARTAIR_PORT"
-    echo "SMARTAIR_URL=http://${IP_AP}:${SMARTAIR_PORT}/"
+    echo "HOTSPOT_CAPTIVE=${HOTSPOT_CAPTIVE:-0}"
+    echo "SMARTAIR_AP_OPEN=${SMARTAIR_AP_OPEN:-0}"
+    echo "SMARTAIR_URL=$PUB_URL"
   } >"$OUT_STATE"
   if [[ -n "${SUDO_USER:-}" && -d "$ROOT" ]]; then
     chown "${SUDO_USER}:$(id -gn "$SUDO_USER" 2>/dev/null || echo root)" "$OUT_STATE" 2>/dev/null || true
   fi
 fi
 
-log "Done. Hotspot should be: SSID=\"$SMARTAIR_AP_SSID\" (WPA2)"
+if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+  log "Done. Hotspot: SSID=\"$SMARTAIR_AP_SSID\" (open, no password)"
+else
+  log "Done. Hotspot should be: SSID=\"$SMARTAIR_AP_SSID\" (WPA2)"
+fi
+if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" && -n "${IP_AP:-}" ]]; then
+  log "Captive mode: run ./run (loads .hotspot.env), then on a phone try http://$IP_AP/  (port 80 is redirected to the app)"
+fi
 log "IP on $AP_IFACE: ${IP_AP:-unknown} — use in QR and for Flask: http://<that-ip>:$SMARTAIR_PORT"
 log "Mode: $METHOD"
 log "Next: run (as normal user)  $ROOT/scripts/generate-demo-qrs.sh --detect"

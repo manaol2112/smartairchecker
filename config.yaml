@@ -97,6 +97,9 @@ data:
 server:
   host: "0.0.0.0"
   port: 5001
+  # When true, common OS “connectivity check” paths redirect to your dashboard
+  # (use with ./setuphotspot and HOTSPOT_CAPTIVE=1 — see docs/pi-wifi-hotspot.md)
+  captive_portal: false
   # How often the browser refetches /api/status (ms). Lower = quicker graph/number updates.
   live_poll_ms: 1000
 

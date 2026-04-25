@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 from flask import Flask, jsonify, render_template, request
@@ -12,6 +13,8 @@ from outputs import AirQualityIndicator
 from sensor_bme680 import BME680Monitor
 import state
 from settings import load_config
+
+from captive_portal import register_captive_routes
 
 app = Flask(__name__)
 # Without this, the server can keep a cached Jinja2 template in memory; edits to
@@ -88,6 +91,26 @@ def _follow_hardware_loop() -> None:
 
 def create_app() -> Flask:
     return app
+
+
+def _load_captive_from_hotspot_files() -> None:
+    """Apply HOTSPOT_CAPTIVE from .hotspot.env or .hotspot.state so ./run matches ./setuphotspot."""
+    if os.environ.get("HOTSPOT_CAPTIVE") or os.environ.get("SMARTAIR_CAPTIVE"):
+        return
+    root = Path(__file__).resolve().parent
+    for name in (".hotspot.env", ".hotspot.state"):
+        p = root / name
+        if not p.is_file():
+            continue
+        for raw in p.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.split("#", 1)[0].strip()
+            if not line.startswith("HOTSPOT_CAPTIVE="):
+                continue
+            v = line.split("=", 1)[1].strip().strip('"').strip("'")
+            if v in ("1", "true", "yes"):
+                os.environ["HOTSPOT_CAPTIVE"] = "1"
+                os.environ["SMARTAIR_CAPTIVE"] = "1"
+            return
 
 
 def _live_poll_ms() -> int:
@@ -172,6 +195,8 @@ def run() -> None:
             break
         time.sleep(0.1)
 
+    _load_captive_from_hotspot_files()
+    register_captive_routes(app)
     cfg = load_config()
     s = cfg.get("server", {})
     host = s.get("host", "0.0.0.0")

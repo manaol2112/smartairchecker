@@ -82,8 +82,19 @@ escape_wifi_pass() {
 }
 
 P_ESC="$(escape_wifi_pass "$SMARTAIR_AP_PASS")"
-WIFI_STR="WIFI:T:${WIFI_TYPE};S:${SMARTAIR_AP_SSID};P:${P_ESC};;"
-URL="http://${AP_IP}:${SMARTAIR_PORT}/"
+if [[ "${SMARTAIR_AP_OPEN:-0}" == "1" ]]; then
+  WIFI_STR="WIFI:T:nopass;S:${SMARTAIR_AP_SSID};P:;;"
+else
+  WIFI_STR="WIFI:T:${WIFI_TYPE};S:${SMARTAIR_AP_SSID};P:${P_ESC};;"
+fi
+URL="${SMARTAIR_URL:-}"
+if [[ -z "$URL" ]]; then
+  if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+    URL="http://${AP_IP}/"
+  else
+    URL="http://${AP_IP}:${SMARTAIR_PORT}/"
+  fi
+fi
 
 mkdir -p "$OUT_DIR"
 WF="$OUT_DIR/demo-wifi-join.png"

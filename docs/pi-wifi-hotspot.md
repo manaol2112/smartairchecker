@@ -9,11 +9,25 @@ Use this to turn a Pi into its own small Wi-Fi network. Kids connect their phone
 
 You cannot have **one** QR that both auto-connects *and* opens your site in a reliable, universal way. Use **two** QRs (this repo generates both PNGs for you) or a poster with: “1) join Wi-Fi  2) open this link.”
 
+### Open Wi-Fi (no password) and “captive” auto-redirect
+
+For a **public demo** you can set **`SMARTAIR_AP_OPEN=1`** in `.hotspot.env` before `./setuphotspot`. The AP will have **no WPA password** (anyone in range can join). That is convenient for visitors; do not treat the network as private.
+
+To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE=1`** in `.hotspot.env` and run `./setuphotspot` again. The script will use the **hostapd + dnsmasq** path and:
+
+- Point **all DNS lookups** from clients to the Pi’s address (so “am I online?” checks hit your Pi).
+- **Redirect TCP port 80** to your Flask port (e.g. 5001), so `http://<pi>/` reaches the app without running Flask as root on :80.
+- With **`./run`**, the Flask app registers common **connectivity-check paths** (for example `/generate_204`, `/hotspot-detect.html`) and **302-redirects** them to your project URL.
+
+**Reality check:** different phones and OS versions still behave differently. Some show a **“Sign in to network”** sheet, others open a browser tab, and some only show a notification—**full auto-open of your page is not guaranteed**. A printed **URL QR** or poster text remains the most reliable fallback.
+
+**Rules and venues:** open access points may be restricted or inappropriate in some places; use only where you are allowed to run a dedicated demo network.
+
 ## What the scripts do
 
 | Script | Purpose |
 |--------|--------|
-| `scripts/hotspot.env.example` | Copy to `.hotspot.env` in the project root, set `SMARTAIR_AP_SSID` and `SMARTAIR_AP_PASS` (8+ characters). |
+| `scripts/hotspot.env.example` | Copy to `.hotspot.env`, set `SMARTAIR_AP_SSID` and `SMARTAIR_AP_PASS` (8+ chars), or `SMARTAIR_AP_OPEN=1` for no password. Optional: `HOTSPOT_CAPTIVE=1` for auto-redirect / captive-style behavior. |
 | `scripts/setup-wifi-ap.sh` | On the Pi, installs/configures a hotspot. Prefers **NetworkManager** + `nmcli` when available (typical on Raspberry Pi OS **Bookworm desktop**). If `nmcli` reports success but the interface never reaches real **AP** mode (see `verify-hotspot`), it **automatically falls back** to **hostapd + dnsmasq** and static `192.168.4.1/24`. Otherwise uses hostapd when NM is off or you set `HOTSPOT_USE_CLASSIC=1`. |
 | `scripts/generate-demo-qrs.sh` | Creates `docs/generated/demo-wifi-join.png` and `docs/generated/demo-project-url.png` plus a small text file with the URL. |
 
@@ -127,7 +141,9 @@ HOTSPOT_USE_CLASSIC=1 ./setuphotspot
 
 ## Security note
 
-The demo network uses a **shared password** (often printed on a poster). Treat it as **open house**-level access, not private data. Use a long random password if you are worried about neighbors joining.
+With **WPA2**, the demo network uses a **shared password** (often printed on a poster). Treat it as **open house**-level access, not private data. Use a long random password if you are worried about neighbors joining.
+
+With **`SMARTAIR_AP_OPEN=1`**, there is **no Wi-Fi encryption** between the phone and the Pi (and anyone in range can join). Use only for **local demos** where that is acceptable.
 
 ## See also
 
