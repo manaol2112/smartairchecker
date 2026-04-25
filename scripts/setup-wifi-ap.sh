@@ -17,6 +17,9 @@
 #
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/hotspot-iptables-helpers.sh
+# shellcheck disable=SC1090
+. "${ROOT}/scripts/hotspot-iptables-helpers.sh" 2>/dev/null || true
 ENV_FILE="${HOTSPOT_ENV:-$ROOT/.hotspot.env}"
 # shellcheck source=/dev/null
 if [[ -f "$ENV_FILE" ]]; then
@@ -120,13 +123,21 @@ captive_iptables() {
     log "HOTSPOT_CAPTIVE=1 but iptables not found — install iptables to redirect :80 to :$SMARTAIR_PORT"
     return 0
   fi
-  while iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
-    iptables -t nat -D PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null || break
-  done
-  if ! iptables -t nat -A PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; then
-    log "WARNING: iptables redirect failed; HTTP on port 80 may not reach Flask"
+  if declare -F hotspot_captive_nat_add &>/dev/null; then
+    if ! hotspot_captive_nat_add "$AP_IFACE" "$SMARTAIR_PORT" 2>/dev/null; then
+      log "WARNING: iptables redirect failed; HTTP on port 80 may not reach Flask"
+    else
+      log "Captive: TCP port 80 on $AP_IFACE → 127.0.0.1:$SMARTAIR_PORT (run ./run; .hotspot.env loads HOTSPOT_CAPTIVE for /generate_204 etc.)"
+    fi
   else
-    log "Captive: TCP port 80 on $AP_IFACE → 127.0.0.1:$SMARTAIR_PORT (run ./run; .hotspot.env loads HOTSPOT_CAPTIVE for /generate_204 etc.)"
+    while iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
+      iptables -t nat -D PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null || break
+    done
+    if iptables -t nat -A PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; then
+      log "Captive: TCP port 80 on $AP_IFACE → 127.0.0.1:$SMARTAIR_PORT (helpers missing; used inline iptables)"
+    else
+      log "WARNING: iptables redirect failed; HTTP on port 80 may not reach Flask"
+    fi
   fi
 }
 
@@ -252,22 +263,63 @@ DHCPEOF
     H_DNS_BIND="bind-interfaces"
   fi
   if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
-    log "HOTSPOT_CAPTIVE=1 — dnsmasq answers DNS on :53 (${STATIC_PREFIX}.1 only); all names → Pi (see docs/pi-wifi-hotspot.md)"
-    cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
-# SmartAir — DHCP + resolve all A records to the AP (captive-style demo)
+    P_IP="${STATIC_PREFIX}.1"
+    if [[ "${HOTSPOT_CAPTIVE_WILDCARD:-0}" == "1" ]]; then
+      log "HOTSPOT_CAPTIVE_WILDCARD=1 — all DNS → ${P_IP} (can overload a Pi: many clients × every hostname; use 0 and default light mode instead if the Pi locks up)"
+      cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
+# SmartAir — full captive (every name → AP); heavy; see HOTSPOT_CAPTIVE_WILDCARD
 port=53
 no-resolv
+no-poll
+cache-size=20000
 interface=${AP_IFACE}
 ${H_DNS_BIND}
-listen-address=${STATIC_PREFIX}.1
+listen-address=${P_IP}
 domain-needed
 bogus-priv
 dhcp-authoritative
 dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
-dhcp-option=3,${STATIC_PREFIX}.1
-dhcp-option=6,${STATIC_PREFIX}.1
-address=/#/${STATIC_PREFIX}.1
+dhcp-option=3,${P_IP}
+dhcp-option=6,${P_IP}
+address=/#/${P_IP}
 DNS_EOF
+    else
+      log "HOTSPOT_CAPTIVE: selective-DNS (default) — only known phone check hosts → ${P_IP}; other queries use upstream (less likely to freeze the Pi). Set HOTSPOT_CAPTIVE_WILDCARD=1 in .hotspot.env for the old all-names behavior."
+      cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
+# SmartAir — light captive: DHCP on AP; only well-known *probe* hostnames go to the Pi; others → upstream
+# (Do not send www.google.com / all of gstatic to the Pi or browsing breaks. HOTSPOT_CAPTIVE_WILDCARD=1 = old catch-all.)
+port=53
+no-resolv
+no-poll
+cache-size=20000
+interface=${AP_IFACE}
+${H_DNS_BIND}
+listen-address=${P_IP}
+server=1.1.1.1
+server=8.8.8.8
+strict-order
+domain-needed
+bogus-priv
+dhcp-authoritative
+dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
+dhcp-option=3,${P_IP}
+dhcp-option=6,${P_IP}
+address=/connectivitycheck.gstatic.com/${P_IP}
+address=/connectivitycheck.android.com/${P_IP}
+address=/captive.g.aaplimg.com/${P_IP}
+address=/captive.apple.com/${P_IP}
+address=/www.msftncsi.com/${P_IP}
+address=/msftncsi.com/${P_IP}
+address=/msftconnecttest.com/${P_IP}
+address=/connectivitycheck.platform.hicloud.com/${P_IP}
+address=/play.googleapis.com/${P_IP}
+address=/connect.rom.miui.com/${P_IP}
+address=/global.market.xiaomi.com/${P_IP}
+address=/clients3.google.com/${P_IP}
+address=/detectportal.firefox.com/${P_IP}
+address=/gsp-ssl-redirect.ls.apple.com/${P_IP}
+DNS_EOF
+    fi
   else
     cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
 # SmartAir — DHCP only (port=0) so we do not bind DNS :53 (avoids clash with systemd-resolved)
@@ -528,6 +580,7 @@ if [[ -n "${IP_AP:-}" ]]; then
     echo "AP_IFACE=$AP_IFACE"
     echo "SMARTAIR_PORT=$SMARTAIR_PORT"
     echo "HOTSPOT_CAPTIVE=${HOTSPOT_CAPTIVE:-0}"
+    echo "HOTSPOT_CAPTIVE_WILDCARD=${HOTSPOT_CAPTIVE_WILDCARD:-0}"
     echo "SMARTAIR_AP_OPEN=$SMARTAIR_AP_OPEN"
     echo "SMARTAIR_URL=$PUB_URL"
   } >"$OUT_STATE"
