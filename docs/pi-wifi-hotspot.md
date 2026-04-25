@@ -122,6 +122,7 @@ If your USB Wi-Fi is **`wlan1`**, set in `.hotspot.env`: `AP_IFACE=wlan1`
 ## If `nmcli` is not used (hostapd path)
 
 - The script **stops** `NetworkManager` and `wpa_supplicant` only for that session to free `wlan0`. It does **not** permanently disable NetworkManager. To get desktop/guest Wi-Fi back: `sudo systemctl start NetworkManager` (or reboot).
+- If the script **seemed to freeze** on “Stopping NetworkManager…”, a plain `systemctl stop NetworkManager` can take **a long time** on some systems. The setup script now uses a **non-blocking** stop first, then a time-limited wait, and only then a force kill. If you ever need to unblock by hand, in a second terminal run: `sudo systemctl stop NetworkManager` (or `sudo systemctl kill NetworkManager`).
 - You need a **country code** in hostapd; set `WIFI_COUNTRY` in `.hotspot.env` before running.
 - If `dhcpcd` is not your distro’s network manager, the static-IP block may not apply. Prefer the **NetworkManager** path (desktop Pi OS) for fewer surprises, or set `HOTSPOT_USE_CLASSIC=0` and ensure NM is started.
 

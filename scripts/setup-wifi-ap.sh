@@ -156,12 +156,31 @@ fi
 setup_classic_ap() {
   log "Using hostapd + dnsmasq; static $STATIC_PREFIX.1/24 on $AP_IFACE"
   log "Stopping NetworkManager for this session (re-enable: systemctl start NetworkManager)"
+  log "  → wpa_supplicant…"
   systemctl stop wpa_supplicant@* 2>/dev/null || true
   systemctl stop wpa_supplicant 2>/dev/null || true
-  systemctl stop NetworkManager 2>/dev/null || true
   for svc in wpa_supplicant; do
     systemctl stop "$svc" 2>/dev/null || true
   done
+  # Plain "systemctl stop NetworkManager" can block 60s+ on some Pi images; use --no-block first.
+  log "  → NetworkManager (non-blocking stop; if this step worried you before, that wait is gone)…"
+  if systemctl is-active --quiet NetworkManager 2>/dev/null; then
+    systemctl --no-block stop NetworkManager 2>/dev/null || true
+    sleep 2
+    if systemctl is-active --quiet NetworkManager 2>/dev/null; then
+      if command -v timeout &>/dev/null; then
+        log "  → still active — waiting up to 60s (or open another terminal: sudo systemctl stop NetworkManager)"
+        timeout 60s systemctl stop NetworkManager 2>/dev/null || true
+      else
+        systemctl stop NetworkManager 2>/dev/null || true
+      fi
+    fi
+    if systemctl is-active --quiet NetworkManager 2>/dev/null; then
+      log "  → forcing kill so hostapd can use $AP_IFACE (desktop Wi-Fi will drop until you start NetworkManager again)"
+      systemctl kill -s KILL NetworkManager 2>/dev/null || true
+      sleep 1
+    fi
+  fi
   if require_bin systemctl; then
     systemctl unmask hostapd 2>/dev/null || true
   fi
