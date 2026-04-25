@@ -72,9 +72,12 @@ buzzer:
   # Passive only: how hard the piezo is driven (PWM duty 0.05–1.0). Default 1.0 = full/louder.
   # Lower toward 0.3–0.5 if the module distorts. Active buzzer ignores this.
   volume: 1.0
-  # continuous = sound until air is no longer "bad" (loud; good for alerts).
-  # pulsed = beep in bursts; beep_on / beep_off / repeat_every below apply only to pulsed.
-  pattern: continuous
+  # pattern: siren = two alternating tones (best for audiences) | continuous | pulsed
+  pattern: siren
+  # Siren only: low/high pitch (Hz) and how long each blast lasts (seconds).
+  siren_freq_low: 2000
+  siren_freq_high: 4200
+  siren_step_seconds: 0.1
   beep_on: 0.4
   beep_off: 0.2
   repeat_every: 2.0

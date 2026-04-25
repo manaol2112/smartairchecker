@@ -110,6 +110,34 @@ def main() -> int:
             _play(dev, passive, freq, vol)
             time.sleep(1.5)
             _stop(dev, passive)
+            cfg2 = load_config()
+            bc = cfg2.get("buzzer", {}) if isinstance(cfg2.get("buzzer"), dict) else {}
+            flo = float(bc.get("siren_freq_low", 2000.0))
+            fhi = float(bc.get("siren_freq_high", 4200.0))
+            step = max(0.04, float(bc.get("siren_step_seconds", 0.1)))
+            lo, hi = min(flo, fhi), max(flo, fhi)
+            alt = [lo, hi]
+            print(
+                f"  ~2s siren (pattern: siren — {lo:.0f}/{hi:.0f} Hz, step {step}s)…"
+            )
+            t_end = time.time() + 2.0
+            n = 0
+            while time.time() < t_end:
+                _play(dev, passive, alt[n & 1], vol)
+                sl = time.time() + step
+                while time.time() < sl:
+                    time.sleep(0.02)
+                n += 1
+            _stop(dev, passive)
+        else:
+            print("  ~1s rapid stutter (active buzzer — siren-style in app)…")
+            t0 = time.time()
+            while time.time() - t0 < 1.0:
+                cast(Any, dev).on()
+                time.sleep(0.08)
+                cast(Any, dev).off()
+                time.sleep(0.08)
+            _stop(dev, passive)
 
         print("Done. If you heard nothing, check VCC/GND/IO wiring and: buzzer.enabled, buzzer.kind")
     finally:

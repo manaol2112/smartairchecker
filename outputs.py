@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 QualityLabel = Literal["good", "moderate", "bad"]
 BuzzerKind = Literal["active", "passive"]
-BuzzerPattern = Literal["pulsed", "continuous"]
+BuzzerPattern = Literal["pulsed", "continuous", "siren"]
 
 
 class _Mock:
@@ -131,7 +131,30 @@ class AirQualityIndicator:
             self._buzzer_kind = "active"
         self._buzzer_freq = float(bz_cfg.get("frequency_hz", 2500.0))
         pat = str(bz_cfg.get("pattern", "pulsed")).lower().strip()
-        self._buzz_pattern: BuzzerPattern = "continuous" if pat == "continuous" else "pulsed"
+        if pat in (
+            "siren",
+            "alarm",
+            "yelp",
+            "audience",
+            "hilo",
+            "hi-lo",
+        ):
+            self._buzz_pattern: BuzzerPattern = "siren"
+        elif pat == "continuous":
+            self._buzz_pattern = "continuous"
+        else:
+            self._buzz_pattern = "pulsed"
+        # Two-tone siren: alternating Hz (classroom / attention; passive piezo only for dual tone)
+        self._siren_f_lo = float(
+            bz_cfg.get("siren_freq_low", bz_cfg.get("siren_low_hz", 2000.0))
+        )
+        self._siren_f_hi = float(
+            bz_cfg.get("siren_freq_high", bz_cfg.get("siren_high_hz", 4200.0))
+        )
+        self._siren_step = float(
+            bz_cfg.get("siren_step_seconds", bz_cfg.get("siren_step", 0.1))
+        )
+        self._siren_step = max(0.04, min(0.5, self._siren_step))
         self._beep_on = float(bz_cfg.get("beep_on", 0.4))
         self._beep_off = float(bz_cfg.get("beep_off", 0.2))
         self._beep_period = float(bz_cfg.get("repeat_every", 2.0))
@@ -209,6 +232,42 @@ class AirQualityIndicator:
     def _buzz_worker(self) -> None:
         bz: Any = self._buzzer
         is_p = self._buzzer_is_passive
+        vol = self._buzzer_pwm_duty
+
+        if self._buzz_pattern == "siren":
+            if isinstance(bz, _Mock):
+                return
+            if is_p:
+                # Alternating two tones (hi/lo) — more noticeable than one steady beep
+                f_lo = min(self._siren_f_lo, self._siren_f_hi)
+                f_hi = max(self._siren_f_lo, self._siren_f_hi)
+                freqs: list[float] = [f_lo, f_hi]
+                i = 0
+                while not self._stop_buzzer.is_set():
+                    _buzzer_start_tone(bz, True, freqs[i & 1], pwm_duty=vol)
+                    t_end = time.time() + self._siren_step
+                    while time.time() < t_end and not self._stop_buzzer.is_set():
+                        time.sleep(0.02)
+                    i += 1
+            else:
+                # Active buzzer: one pitch only — stutter the DC on/off like a fire bell
+                st_on = 0.08
+                st_off = 0.08
+                while not self._stop_buzzer.is_set():
+                    bz.on()
+                    t_end = time.time() + st_on
+                    while time.time() < t_end and not self._stop_buzzer.is_set():
+                        time.sleep(0.02)
+                    bz.off()
+                    t_end = time.time() + st_off
+                    while time.time() < t_end and not self._stop_buzzer.is_set():
+                        time.sleep(0.02)
+            if not isinstance(bz, _Mock):
+                try:
+                    _buzzer_stop(bz, is_p)
+                except OSError:
+                    pass
+            return
 
         if self._buzz_pattern == "continuous":
             if isinstance(bz, _Mock):
