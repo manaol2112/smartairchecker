@@ -42,6 +42,14 @@ A convenient layout is to share **one GND** with the BME680 GND and the LED **GN
 | 2   | SDA1   | 3  (BME680) |
 | 3   | SCL1   | 5  (BME680) |
 
+## Quick self-test (on the Pi)
+
+From the project folder::
+
+  .venv/bin/python3 scripts/test_rgb_led.py
+
+This cycles through red, green, blue, then **good** (green), **moderate** (amber), **bad** (red) like the live app. If a channel is wrong, swap the matching `rgb_red` / `rgb_green` / `rgb_blue` BCM values in `config.yaml` to match the module’s **R / G / B** labels. Use `sudo -E` if you get a GPIO permission error.
+
 ## Software setup
 
 1. **Enable GPIO** (usually already on Pi OS) and, if you see permission errors, add your user to the `gpio` group and log in again:

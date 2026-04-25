@@ -46,6 +46,14 @@ If the sound is too harsh or quiet, try **2000**–**4000** Hz, or set `pattern:
 
 **GPIO pin number** is under `gpio.buzzer` (not inside `buzzer:`).
 
+## Quick self-test (on the Pi)
+
+From the project folder, with `gpio` permissions or `sudo`::
+
+  .venv/bin/python3 scripts/test_buzzer.py
+
+You should get three short beeps, then a longer tone if `kind: passive` is set. If nothing is heard, re-check VCC, GND, the signal wire on `gpio.buzzer` (default BCM 18), and `buzzer.enabled` / `buzzer.kind` in `config.yaml`.
+
 ## How it lines up with the “score”
 
 The buzzer is driven only by the same **quality band** as the UI: **good**, **moderate**, **bad** (from the BME680 gas reading and the `air_quality` thresholds in `config.yaml`), not a separate 0–100 rule. It starts when the band is **bad** and stops when the reading moves to **moderate** or **good** — no extra wiring.
