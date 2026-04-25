@@ -3,6 +3,8 @@
 # EMERGENCY: if the Pi is "frozen", use Ethernet + keyboard or power-cycle, then run this
 # (or: sudo killall -9 hostapd dnsmasq; then this script from a TTY with sudo).
 # Uses kill -9 on dnsmasq/hostapd first because systemctl can block when dbus is wedged.
+# NetworkManager is started with "systemctl start --no-block" (we do not wait for NM to be
+# "active" — that call can hang for minutes on a busy Pi) — Wi‑Fi may take 30–60s to return.
 #
 # From project root:  sudo ./scripts/restore-client-wifi.sh
 # Optional: HOTSPOT_ENV=/path/to/.hotspot.env
@@ -62,9 +64,18 @@ run_with_timeout() {
   return 124
 }
 
-log "Removing captive iptables :80 → :$SMARTAIR_PORT (if any)…"
+H_HELP="$(cd "$(dirname "$0")" && pwd)/hotspot-iptables-helpers.sh"
+log "Removing captive iptables :80 → :$SMARTAIR_PORT (if any; max 25s)…"
 if declare -F hotspot_captive_nat_remove &>/dev/null; then
-  hotspot_captive_nat_remove "$AP_IFACE" "$SMARTAIR_PORT" || true
+  if command -v timeout &>/dev/null; then
+    # netfilter/iptables can block if the kernel is under heavy load
+    if ! timeout 25s bash -c ". \"\$0\" 2>/dev/null; declare -F hotspot_captive_nat_remove &>/dev/null && hotspot_captive_nat_remove \"\$1\" \"\$2\"" \
+      "$H_HELP" "$AP_IFACE" "$SMARTAIR_PORT" 2>/dev/null; then
+      log "iptables NAT remove hit timeout or error — you may need  sudo reboot  if NAT rules linger"
+    fi
+  else
+    hotspot_captive_nat_remove "$AP_IFACE" "$SMARTAIR_PORT" || true
+  fi
 else
   _n=0
   while ((_n < 32)) && iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
@@ -98,29 +109,37 @@ fi
 ip link set dev "$AP_IFACE" up 2>/dev/null || true
 
 set +e
-run_with_timeout 6 systemctl is-failed NetworkManager 2>/dev/null
+run_with_timeout 4 systemctl is-failed NetworkManager 2>/dev/null
 _nmf=$?
 set -e
-# 0 = unit is in failed state; 124 = timeout (skip; D-Bus may be wedged)
+# 0 = unit is in failed state; 124 = skip reset
 if [[ "$_nmf" -eq 0 ]]; then
-  log "NetworkManager: reset-failed (after kill during hotspot)…"
-  run_with_timeout 6 systemctl reset-failed NetworkManager 2>/dev/null || true
+  log "NetworkManager: reset-failed (best effort)…"
+  run_with_timeout 4 systemctl reset-failed NetworkManager 2>/dev/null || true
 fi
 
-log "Starting NetworkManager (45s max — if this returns 124, D-Bus may be stuck; try: sudo reboot)…"
+# Plain "systemctl start NetworkManager" waits until the unit is active — on a busy Pi that can
+# sit for *many* minutes and look like a hang. Only queue the job; do not wait for activation.
+log "Queuing NetworkManager start (no-block, max 15s for D-Bus) — script exits without waiting for Wi‑Fi…"
 set +e
-run_with_timeout 45 systemctl start NetworkManager
-rc=$?
+run_with_timeout 15 systemctl start --no-block NetworkManager 2>/dev/null
+_nms=$?
 set -e
-if [[ "$rc" -ne 0 ]]; then
-  if [[ "$rc" -eq 124 ]]; then
-    log "Timed out (systemctl start); D-Bus or systemd may be wedged. Recovery:  sudo reboot"
-  else
-    log "NetworkManager start failed (rc=$rc). If Pi is very stuck:  sudo reboot"
-  fi
-  log "  journal:  journalctl -u NetworkManager -b -n 30"
-  exit 1
+if [[ "$_nms" -eq 124 ]]; then
+  log "Even --no-block start hit the timeout; D-Bus is likely stuck. Last resort:  sudo reboot  (or Ethernet shell)"
+else
+  log "NetworkManager start was queued. Allow up to 1–2 min for the desktop Wi‑Fi icon, or:  nmtui / nmcli"
 fi
-log "OK — Wi-Fi back in a few seconds (nmtui / nmcli). No hotspot on boot:  systemctl disable hostapd dnsmasq"
-log "Re-run demo:  ./setuphotspot  |  If captive made the Pi unresponsive, keep HOTSPOT_CAPTIVE_WILDCARD=0 and use the default 'light' DNS in setup."
+
+log "Unblocking radio (best effort)…"
+run_with_timeout 5 rfkill unblock wifi 2>/dev/null || true
+
+log "Disabling hostapd + dnsmasq on boot (no-block) so the hotspot does not return after reboot…"
+set +e
+run_with_timeout 8 systemctl --no-block disable hostapd 2>/dev/null || true
+run_with_timeout 8 systemctl --no-block disable dnsmasq 2>/dev/null || true
+set -e
+
+log "If Wi‑Fi does not return:  sudo systemctl restart NetworkManager   |   still broken:  sudo reboot"
+log "Re-run demo:  ./setuphotspot  |  If captive made the Pi unresponsive, keep HOTSPOT_CAPTIVE_WILDCARD=0"
 exit 0

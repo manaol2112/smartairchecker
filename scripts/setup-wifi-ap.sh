@@ -397,6 +397,10 @@ wmm_enabled=1
 beacon_int=100
 auth_algs=1
 ignore_broadcast_ssid=0
+# Pi / brcmf: false "low ACK" drops confuse many clients; next join can spin on "Connecting"
+disassoc_low_ack=0
+# Do not time-out "idle" stations (reduces reconnection flakiness in classrooms)
+ap_max_inactivity=0
 wpa=0
 country_code=${WIFI_COUNTRY}
 HPEOF
@@ -426,11 +430,16 @@ wmm_enabled=1
 beacon_int=100
 auth_algs=1
 ignore_broadcast_ssid=0
+# Pi / brcmf: false "low ACK" drops; next association often stuck on "Connecting" / forget+rejoin
+disassoc_low_ack=0
+ap_max_inactivity=0
 wpa=2
 ${HAP_WPA_LINE}
 wpa_key_mgmt=WPA-PSK
 wpa_pairwise=CCMP
 rsn_pairwise=CCMP
+# GTK rekey can interrupt flaky stacks; 0 = disabled (demo / classroom AP)
+wpa_group_rekey=0
 country_code=${WIFI_COUNTRY}
 HPEOF
   fi
