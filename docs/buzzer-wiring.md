@@ -43,7 +43,8 @@ buzzer:
 |-----|--------|
 | `enabled` | `false` = never drive the buzzer (LED only). |
 | `kind` | `passive` = play a tone with `TonalBuzzer` + `frequency_hz`. `active` = simple on/off, no `frequency_hz`. |
-| `volume` | **Passive only:** PWM drive strength, **0.05–1.0** (default **1.0** = loudest). The underlying library used to use 50% duty, which is often **quiet**; if it sounds distorted, try **0.7–0.9**. `active` buzzers ignore this. |
+| `volume` | **Passive only:** **0–1** “loudness” scale. The app maps this to **PWM duty ≈0.05–0.5**. A **symmetric** square wave needs duty around **0.5**; duty **1.0** is ~100% high in each cycle (almost **DC** to the piezo) and is often **barely audible** — this is why “max volume” used to mean *quieter*. Leave **`volume: 1.0`** for the loudest **software** setting, or set raw **`pwm_duty:`** (e.g. `0.48`) to fine-tune. `active` buzzers ignore this. |
+| `pwm_duty` | **Passive, optional expert:** set **0.05–0.5** directly (overrides `volume`). |
 | `frequency_hz` | Tone for a passive buzzer (roughly 2–4 kHz is a typical sharp alarm). |
 | `pattern` | **`siren`** (default) = two **alternating** tones (hi/lo) on passive piezo — sounds like a small alarm, good for audiences. Aliases: `alarm`, `audience`, `yelp`. **`continuous`** = one steady tone until “bad” clears. **`pulsed`** = beep bursts; uses `beep_on` / `beep_off` / `repeat_every`. |
 | `siren_freq_low` / `siren_freq_high` | **Siren only** (passive): two frequencies in Hz (defaults 2000 / 4200). |
@@ -51,7 +52,9 @@ buzzer:
 
 If the sound is too harsh or quiet, try **2000**–**4000** Hz, or set `pattern: pulsed` for a gentler, intermittent warning.
 
-**Louder / “alarm” for a room:** use **`pattern: siren`** (repo default) so the Pi **alternates** two tones (like a mini siren) instead of one droning note — that stands out much more in a classroom. Tune **`siren_freq_low` / `siren_freq_high`** and **`siren_step_seconds`** (faster step = more urgent). Also set **`buzzer.volume: 1.0`** for full PWM drive, use **5V on VCC** on the module if appropriate, and try slightly different **frequencies** if the piezo is still quiet (resonance varies by part).
+**Louder in software (Pi GPIO only):** use **`pattern: siren`**, keep **`volume: 1.0`**, and ensure you are not asking for `pwm_duty` **above ~0.5** on a passive piezo (see table above). Use **5V on the module’s VCC** and higher **siren** frequencies (repo defaults are in the *high* kHz range) so the tone carries in a room.
+
+**If you need “very loud” in a big room or fair hall** — a tiny GPIO piezo is **not** a PA system. The Pi only has **3.3 V, low current** on the signal pin. You will need **hardware** such as: a **5 V or 12 V siren** with its own transducer and a **transistor/relay** driven by the GPIO; a **powered speaker** or **amplifier** + speaker; or a **commercial 85 dB+ active buzzer** on a **driver board** (still limited by 3.3 V control). The software cannot exceed the **acoustic and electrical limits** of the part you wire up.
 
 **“tone is out of the device's range”** (from `gpiozero`): the old default was a **narrow** musical range (~220–880 Hz). The app now uses `TonalBuzzer(..., octaves=4)` so **2–4 kHz** alarm tones from `frequency_hz` work. Update the repo or set the same in your copy of `outputs.py` / `scripts/test_buzzer.py` if you still see this.
 

@@ -27,6 +27,7 @@ if str(_ROOT) not in sys.path:
 os.chdir(_ROOT)  # stable relative paths in logs
 
 from settings import is_dry_run, load_config  # noqa: E402
+from outputs import buzzer_effective_pwm_duty  # noqa: E402
 
 try:
     from typing import Any, cast
@@ -52,14 +53,14 @@ def _init_buzzer():
     kind = str(bz_cfg.get("kind", "active")).lower().strip()
     passive = kind in ("passive", "piezo", "pzm", "5v_piezo")
     freq = float(bz_cfg.get("frequency_hz", 2500.0))
-    vol = max(0.05, min(1.0, float(bz_cfg.get("volume", 1.0))))
+    duty = buzzer_effective_pwm_duty(bz_cfg) if passive else 1.0
 
     if passive:
         # octaves=4 spans ~28 Hz–7 kHz around A4 (default 2500 Hz fits; default ctor is ~220–880 Hz)
         dev = TonalBuzzer(pin, octaves=4)
     else:
         dev = LED(pin, active_high=True)
-    return dev, pin, passive, freq, vol
+    return dev, pin, passive, freq, duty
 
 
 def _stop(dev: object, passive: bool) -> None:
@@ -69,13 +70,13 @@ def _stop(dev: object, passive: bool) -> None:
         cast(Any, dev).off()
 
 
-def _play(dev: object, passive: bool, freq: float, pwm_duty: float = 1.0) -> None:
+def _play(dev: object, passive: bool, freq: float, pwm_duty: float = 0.5) -> None:
     if passive:
         d: Any = cast(Any, dev)
         d.play(float(freq))
         pd = getattr(d, "pwm_device", None)
         if pd is not None:
-            pd.value = max(0.05, min(1.0, pwm_duty))
+            pd.value = max(0.05, min(0.5, pwm_duty))
     else:
         cast(Any, dev).on()
 
@@ -85,7 +86,7 @@ def main() -> int:
         print("Skip: not a target Pi (use SENSORS_DRY_RUN=0 and run on Linux/Pi for GPIO).", file=sys.stderr)
         return 1
     try:
-        dev, pin, passive, freq, vol = _init_buzzer()
+        dev, pin, passive, freq, duty = _init_buzzer()
     except Exception as e:  # noqa: BLE001
         print("Could not open GPIO / buzzer:", e, file=sys.stderr)
         print("Try:  sudo -E .venv/bin/python3 scripts/test_buzzer.py", file=sys.stderr)
@@ -94,12 +95,15 @@ def main() -> int:
     kind = "passive (TonalBuzzer, tone)" if passive else "active (DC high)"
     print(f"Buzzer on BCM GPIO {pin} — {kind}")
     if passive:
-        print(f"  frequency_hz={freq}  volume={vol} (PWM duty; see buzzer.volume in config.yaml)")
+        print(
+            f"  frequency_hz={freq}  → effective PWM duty={duty:.2f} "
+            f"(see buzzer.volume / buzzer.pwm_duty; ~0.5 is usually loudest on a piezo)"
+        )
 
     try:
         print("  Three short beeps…")
         for i in range(3):
-            _play(dev, passive, freq, vol)
+            _play(dev, passive, freq, duty)
             time.sleep(0.35)
             _stop(dev, passive)
             time.sleep(0.25)
@@ -107,7 +111,7 @@ def main() -> int:
 
         if passive:
             print("  1.5s steady tone (should be clearly audible)…")
-            _play(dev, passive, freq, vol)
+            _play(dev, passive, freq, duty)
             time.sleep(1.5)
             _stop(dev, passive)
             cfg2 = load_config()
@@ -123,7 +127,7 @@ def main() -> int:
             t_end = time.time() + 2.0
             n = 0
             while time.time() < t_end:
-                _play(dev, passive, alt[n & 1], vol)
+                _play(dev, passive, alt[n & 1], duty)
                 sl = time.time() + step
                 while time.time() < sl:
                     time.sleep(0.02)

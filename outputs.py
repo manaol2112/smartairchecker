@@ -90,20 +90,34 @@ def _buzzer_stop(bz: object, is_passive: bool) -> None:
         cast(Any, bz).off()
 
 
+def buzzer_effective_pwm_duty(bz_cfg: dict) -> float:
+    """PWM *duty* for a passive piezo. Not the same as `volume` 0-1: duty ~0.5 is a symmetric
+    square wave (loudest for most transducers). Duty near 1.0 is ~DC -> almost silent.
+
+    Set ``buzzer.pwm_duty`` in config to override the mapping (0.05-0.5 recommended).
+    """
+    if bz_cfg.get("pwm_duty") is not None:
+        d = float(bz_cfg["pwm_duty"])
+        return max(0.05, min(0.5, d))
+    v = max(0.0, min(1.0, float(bz_cfg.get("volume", 1.0))))
+    # Map "volume" 0..1 -> duty 0.05..0.5 (never drive toward 1.0 on piezo)
+    return 0.05 + 0.45 * v
+
+
 def _buzzer_start_tone(
     bz: object,
     is_passive: bool,
     freq: float,
     *,
-    pwm_duty: float = 1.0,
+    pwm_duty: float = 0.5,
 ) -> None:
-    """TonalBuzzer.play() hard-codes ~50% PWM, which is quiet; raise *pwm_duty* toward 1.0 for louder piezo drive."""
+    """Set tone; for passive, apply *pwm_duty* (typically 0.5 = loudest clean square wave on Pi)."""
     if is_passive:
         dev: Any = cast(Any, bz)
         dev.play(float(freq))
         pd = getattr(dev, "pwm_device", None)
         if pd is not None:
-            d = max(0.05, min(1.0, float(pwm_duty)))
+            d = max(0.05, min(0.5, float(pwm_duty)))
             pd.value = d
     else:
         cast(Any, bz).on()
@@ -158,10 +172,10 @@ class AirQualityIndicator:
         self._beep_on = float(bz_cfg.get("beep_on", 0.4))
         self._beep_off = float(bz_cfg.get("beep_off", 0.2))
         self._beep_period = float(bz_cfg.get("repeat_every", 2.0))
-        # Passive: PWM duty 0.05–1.0. gpiozero's play() uses ~0.5 (quiet on many modules).
-        self._buzzer_pwm_duty = max(0.05, min(1.0, float(bz_cfg.get("volume", 1.0))))
-
         self._buzzer_is_passive = self._buzzer_kind == "passive"
+        self._buzzer_pwm_duty = (
+            buzzer_effective_pwm_duty(bz_cfg) if self._buzzer_is_passive else 1.0
+        )
 
         if _gpio_ok():
             rgb = _init_rgb(pr, pg, pb, active_high)
@@ -311,4 +325,4 @@ class AirQualityIndicator:
                 pass
 
 
-__all__ = ["AirQualityIndicator"]
+__all__ = ["AirQualityIndicator", "buzzer_effective_pwm_duty"]
