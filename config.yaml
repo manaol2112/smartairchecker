@@ -69,10 +69,11 @@ buzzer:
   # "active" = internal oscillator, DC on GPIO only.
   kind: passive
   frequency_hz: 2500
-  # Passive: "volume" 0–1 maps to PWM *duty* ~0.05–0.5 (best drive for a square wave).
-  # Duty near 1.0 is almost DC and is *quieter* on most piezos — use volume: 1.0 for max in software.
-  # Expert: set pwm_duty: 0.45 to override (0.05–0.5). Active buzzer ignores volume.
+  # Passive: base duty from volume, then × gain, then cap. Same values run in ./run and ./test_buzzer.
+  # gain 3 = push drive ~3× before cap; max_pwm_duty prevents ~100% DC (inaudible on piezo).
   volume: 1.0
+  gain: 3.0
+  max_pwm_duty: 0.68
   # pattern: siren = two alternating tones (best for audiences) | continuous | pulsed
   pattern: siren
   # Siren only: low/high pitch (Hz) and how long each blast lasts (seconds).

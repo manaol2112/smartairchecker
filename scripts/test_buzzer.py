@@ -97,7 +97,7 @@ def main() -> int:
     if passive:
         print(
             f"  frequency_hz={freq}  → effective PWM duty={duty:.2f} "
-            f"(see buzzer.volume / buzzer.pwm_duty; ~0.5 is usually loudest on a piezo)"
+            f"(same as live alarm: buzzer.volume × buzzer.gain, capped by max_pwm_duty)"
         )
 
     try:

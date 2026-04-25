@@ -91,17 +91,25 @@ def _buzzer_stop(bz: object, is_passive: bool) -> None:
 
 
 def buzzer_effective_pwm_duty(bz_cfg: dict) -> float:
-    """PWM *duty* for a passive piezo. Not the same as `volume` 0-1: duty ~0.5 is a symmetric
-    square wave (loudest for most transducers). Duty near 1.0 is ~DC -> almost silent.
+    """Final PWM *duty* for a passive piezo (used for every alarm: siren / continuous / pulsed).
 
-    Set ``buzzer.pwm_duty`` in config to override the mapping (0.05-0.5 recommended).
+    1) Base duty from ``volume`` (0..1) → ~0.05..0.5. 2) Multiply by ``gain`` (default 3).
+    3) Cap with ``max_pwm_duty`` so we never approach 1.0 (DC → silent on piezos).
+
+    The Pi cannot output 3× *voltage*; this is the strongest *software* drive most modules tolerate.
     """
+    max_cap = float(bz_cfg.get("max_pwm_duty", 0.68))
+    max_cap = max(0.05, min(0.75, max_cap))
+    gain = float(bz_cfg.get("gain", 3.0))
+    gain = max(0.3, min(5.0, gain))
+    v = max(0.0, min(1.0, float(bz_cfg.get("volume", 1.0))))
     if bz_cfg.get("pwm_duty") is not None:
         d = float(bz_cfg["pwm_duty"])
-        return max(0.05, min(0.5, d))
-    v = max(0.0, min(1.0, float(bz_cfg.get("volume", 1.0))))
-    # Map "volume" 0..1 -> duty 0.05..0.5 (never drive toward 1.0 on piezo)
-    return 0.05 + 0.45 * v
+        raw = d * gain
+    else:
+        base = 0.05 + 0.45 * v
+        raw = base * gain
+    return max(0.05, min(max_cap, raw))
 
 
 def _buzzer_start_tone(
@@ -117,7 +125,7 @@ def _buzzer_start_tone(
         dev.play(float(freq))
         pd = getattr(dev, "pwm_device", None)
         if pd is not None:
-            d = max(0.05, min(0.5, float(pwm_duty)))
+            d = max(0.05, min(0.75, float(pwm_duty)))
             pd.value = d
     else:
         cast(Any, bz).on()

@@ -30,6 +30,8 @@ buzzer:
   kind: passive
   frequency_hz: 2500
   volume: 1.0
+  gain: 3.0
+  max_pwm_duty: 0.68
   pattern: siren
   siren_freq_low: 2000
   siren_freq_high: 4200
@@ -43,8 +45,10 @@ buzzer:
 |-----|--------|
 | `enabled` | `false` = never drive the buzzer (LED only). |
 | `kind` | `passive` = play a tone with `TonalBuzzer` + `frequency_hz`. `active` = simple on/off, no `frequency_hz`. |
-| `volume` | **Passive only:** **0–1** “loudness” scale. The app maps this to **PWM duty ≈0.05–0.5**. A **symmetric** square wave needs duty around **0.5**; duty **1.0** is ~100% high in each cycle (almost **DC** to the piezo) and is often **barely audible** — this is why “max volume” used to mean *quieter*. Leave **`volume: 1.0`** for the loudest **software** setting, or set raw **`pwm_duty:`** (e.g. `0.48`) to fine-tune. `active` buzzers ignore this. |
-| `pwm_duty` | **Passive, optional expert:** set **0.05–0.5** directly (overrides `volume`). |
+| `volume` | **Passive only:** **0–1** input; combined with `gain` (see below). `active` buzzers ignore this. |
+| `gain` | **Passive only:** multiplier on the base duty (default **3.0**). This is the “~3× louder” control in software, before `max_pwm_duty`. The live alarm, siren, and `./test_buzzer` all use the same formula. |
+| `max_pwm_duty` | **Passive only:** hard ceiling (default **0.68**) so drive never hits ~1.0 DC. Lower (e.g. 0.55) if the buzzer distorts. |
+| `pwm_duty` | **Passive, expert:** if set, **replaces** the volume-based base, then `gain` still applies, then `max_pwm_duty` caps. |
 | `frequency_hz` | Tone for a passive buzzer (roughly 2–4 kHz is a typical sharp alarm). |
 | `pattern` | **`siren`** (default) = two **alternating** tones (hi/lo) on passive piezo — sounds like a small alarm, good for audiences. Aliases: `alarm`, `audience`, `yelp`. **`continuous`** = one steady tone until “bad” clears. **`pulsed`** = beep bursts; uses `beep_on` / `beep_off` / `repeat_every`. |
 | `siren_freq_low` / `siren_freq_high` | **Siren only** (passive): two frequencies in Hz (defaults 2000 / 4200). |
@@ -72,6 +76,8 @@ If the shell says **“Permission denied”**, the script is not marked executab
 You should get three short beeps, then a longer tone if `kind: passive` is set. If nothing is heard, re-check VCC, GND, the signal wire on `gpio.buzzer` (default BCM 18), and `buzzer.enabled` / `buzzer.kind` in `config.yaml`.
 
 ## How it lines up with the “score”
+
+**Loudness / alarm drive:** The values `volume`, `gain`, and `max_pwm_duty` are read once at startup and applied to **every** kind of **bad-air** sound (siren, continuous, or pulsed) — the same as `./test_buzzer` (which uses the same helper from `outputs.py`).
 
 The buzzer is driven only by the same **quality band** as the UI: **good**, **moderate**, **bad** (from the BME680 gas reading and the `air_quality` thresholds in `config.yaml`), not a separate 0–100 rule. It starts when the band is **bad** and stops when the reading moves to **moderate** or **good** — no extra wiring.
 
