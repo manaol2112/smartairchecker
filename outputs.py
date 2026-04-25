@@ -72,7 +72,8 @@ def _init_buzzer_device(pin: int, kind: BuzzerKind) -> object | None:
         from gpiozero.exc import BadPinFactory
 
         if kind == "passive":
-            return TonalBuzzer(pin)
+            # Default TonalBuzzer is only A4 ±1 octave (~220–880 Hz); piezo alarms use ~2–4 kHz.
+            return TonalBuzzer(pin, octaves=4)
         return LED(pin, active_high=True)
     except (BadPinFactory, OSError, NotImplementedError) as e:
         logger.warning("GPIO not available; buzzer is off: %s", e)

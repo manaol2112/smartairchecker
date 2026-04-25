@@ -44,6 +44,8 @@ buzzer:
 
 If the sound is too harsh or quiet, try **2000**–**4000** Hz, or set `pattern: pulsed` for a gentler, intermittent warning.
 
+**“tone is out of the device's range”** (from `gpiozero`): the old default was a **narrow** musical range (~220–880 Hz). The app now uses `TonalBuzzer(..., octaves=4)` so **2–4 kHz** alarm tones from `frequency_hz` work. Update the repo or set the same in your copy of `outputs.py` / `scripts/test_buzzer.py` if you still see this.
+
 **GPIO pin number** is under `gpio.buzzer` (not inside `buzzer:`).
 
 ## Quick self-test (on the Pi)

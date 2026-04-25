@@ -54,7 +54,8 @@ def _init_buzzer():
     freq = float(bz_cfg.get("frequency_hz", 2500.0))
 
     if passive:
-        dev = TonalBuzzer(pin)
+        # octaves=4 spans ~28 Hz–7 kHz around A4 (default 2500 Hz fits; default ctor is ~220–880 Hz)
+        dev = TonalBuzzer(pin, octaves=4)
     else:
         dev = LED(pin, active_high=True)
     return dev, pin, passive, freq
