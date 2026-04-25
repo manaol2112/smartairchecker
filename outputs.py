@@ -90,9 +90,21 @@ def _buzzer_stop(bz: object, is_passive: bool) -> None:
         cast(Any, bz).off()
 
 
-def _buzzer_start_tone(bz: object, is_passive: bool, freq: float) -> None:
+def _buzzer_start_tone(
+    bz: object,
+    is_passive: bool,
+    freq: float,
+    *,
+    pwm_duty: float = 1.0,
+) -> None:
+    """TonalBuzzer.play() hard-codes ~50% PWM, which is quiet; raise *pwm_duty* toward 1.0 for louder piezo drive."""
     if is_passive:
-        cast(Any, bz).play(float(freq))
+        dev: Any = cast(Any, bz)
+        dev.play(float(freq))
+        pd = getattr(dev, "pwm_device", None)
+        if pd is not None:
+            d = max(0.05, min(1.0, float(pwm_duty)))
+            pd.value = d
     else:
         cast(Any, bz).on()
 
@@ -123,6 +135,8 @@ class AirQualityIndicator:
         self._beep_on = float(bz_cfg.get("beep_on", 0.4))
         self._beep_off = float(bz_cfg.get("beep_off", 0.2))
         self._beep_period = float(bz_cfg.get("repeat_every", 2.0))
+        # Passive: PWM duty 0.05–1.0. gpiozero's play() uses ~0.5 (quiet on many modules).
+        self._buzzer_pwm_duty = max(0.05, min(1.0, float(bz_cfg.get("volume", 1.0))))
 
         self._buzzer_is_passive = self._buzzer_kind == "passive"
 
@@ -199,7 +213,9 @@ class AirQualityIndicator:
         if self._buzz_pattern == "continuous":
             if isinstance(bz, _Mock):
                 return
-            _buzzer_start_tone(bz, is_p, self._buzzer_freq)
+            _buzzer_start_tone(
+                bz, is_p, self._buzzer_freq, pwm_duty=self._buzzer_pwm_duty
+            )
             self._stop_buzzer.wait()
             try:
                 _buzzer_stop(bz, is_p)
@@ -214,7 +230,9 @@ class AirQualityIndicator:
                 if isinstance(bz, _Mock):
                     time.sleep(self._beep_on + self._beep_off)
                     continue
-                _buzzer_start_tone(bz, is_p, self._buzzer_freq)
+                _buzzer_start_tone(
+                    bz, is_p, self._buzzer_freq, pwm_duty=self._buzzer_pwm_duty
+                )
                 time.sleep(self._beep_on)
                 _buzzer_stop(bz, is_p)
                 time.sleep(self._beep_off)

@@ -29,6 +29,7 @@ buzzer:
   enabled: true
   kind: passive
   frequency_hz: 2500
+  volume: 1.0
   pattern: continuous
   beep_on: 0.4
   beep_off: 0.2
@@ -39,10 +40,13 @@ buzzer:
 |-----|--------|
 | `enabled` | `false` = never drive the buzzer (LED only). |
 | `kind` | `passive` = play a tone with `TonalBuzzer` + `frequency_hz`. `active` = simple on/off, no `frequency_hz`. |
+| `volume` | **Passive only:** PWM drive strength, **0.05–1.0** (default **1.0** = loudest). The underlying library used to use 50% duty, which is often **quiet**; if it sounds distorted, try **0.7–0.9**. `active` buzzers ignore this. |
 | `frequency_hz` | Tone for a passive buzzer (roughly 2–4 kHz is a typical sharp alarm). |
 | `pattern` | `continuous` = tone stays on until “bad” clears. `pulsed` = beep in bursts; then `beep_on`, `beep_off`, `repeat_every` apply. |
 
 If the sound is too harsh or quiet, try **2000**–**4000** Hz, or set `pattern: pulsed` for a gentler, intermittent warning.
+
+**Louder:** set **`buzzer.volume: 1.0`** (default in current `config.yaml`). That drives the piezo at **full PWM**; older code paths only used ~50% duty, which sounds much softer. For more volume in hardware, use **5V on VCC** (pins 2 or 4) if the module allows it, and experiment with **`frequency_hz`** around **2–3 kHz**—small piezos are often loudest near their resonant frequency.
 
 **“tone is out of the device's range”** (from `gpiozero`): the old default was a **narrow** musical range (~220–880 Hz). The app now uses `TonalBuzzer(..., octaves=4)` so **2–4 kHz** alarm tones from `frequency_hz` work. Update the repo or set the same in your copy of `outputs.py` / `scripts/test_buzzer.py` if you still see this.
 

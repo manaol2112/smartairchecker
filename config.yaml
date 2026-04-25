@@ -69,6 +69,9 @@ buzzer:
   # "active" = internal oscillator, DC on GPIO only.
   kind: passive
   frequency_hz: 2500
+  # Passive only: how hard the piezo is driven (PWM duty 0.05–1.0). Default 1.0 = full/louder.
+  # Lower toward 0.3–0.5 if the module distorts. Active buzzer ignores this.
+  volume: 1.0
   # continuous = sound until air is no longer "bad" (loud; good for alerts).
   # pulsed = beep in bursts; beep_on / beep_off / repeat_every below apply only to pulsed.
   pattern: continuous
