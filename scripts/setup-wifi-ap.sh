@@ -335,6 +335,7 @@ rsn_pairwise=CCMP
 country_code=${WIFI_COUNTRY}
 HPEOF
   fi
+  log "Wrote /etc/hostapd/hostapd.conf and /etc/default/hostapd (next: enable services, dhcpcd, then hostapd + dnsmasq)…"
   echo 'DAEMON_CONF="/etc/hostapd/hostapd.conf"' >/etc/default/hostapd
   IP_AP="${STATIC_PREFIX}.1"
   METHOD="hostapd"
@@ -344,18 +345,22 @@ HPEOF
     pkill -x hostapd 2>/dev/null || true
     sleep 1
     if require_bin hostapd; then
+      log "Verifying hostapd config (hostapd -t)…"
       if hp_test=$(hostapd -t /etc/hostapd/hostapd.conf 2>&1); then
         log "hostapd: config OK (hostapd -t)"
       else
         log "hostapd -t: $hp_test"
       fi
     fi
+    log "Enabling hostapd and dnsmasq to start on boot, then restarting dhcpcd (this can take 15–30s on a Pi; not frozen)…"
     systemctl enable hostapd
     systemctl enable dnsmasq
     systemctl restart dhcpcd 2>/dev/null || true
+    log "Waiting for dhcpcd to settle, then setting ${STATIC_PREFIX}.1 on $AP_IFACE…"
     sleep 2
     ensure_classic_ap_ip
     # Start AP *before* dnsmasq: on many Pis, DHCP is unreliable if dnsmasq starts when wlan0 is not yet in AP mode
+    log "Starting hostapd (AP mode on $AP_IFACE) — may take a few seconds…"
     if ! systemctl start hostapd 2>/dev/null; then
       log "systemctl start hostapd failed — will try hostapd -B if still down…"
     fi
