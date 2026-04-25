@@ -1,8 +1,10 @@
 # Air Quality Home Monitor — edit pins to match your wiring (BCM numbers).
 # BME680: I2C (SDA=GPIO2, SCL=GPIO3 on Pi). Connect 3.3V, GND, SDA, SCL.
 
-# RGB LED (DIYables-style common cathode: R, G, B to GPIO, common to GND via board).
-# If your module is common anode (common to 3.3V), set common_anode: true.
+# RGB LED (e.g. DIYables module: R, G, B to GPIO, common/cathode to GND; built-in resistors).
+# Wiring: docs/rgb-led-wiring.md
+# buzzer: BCM pin for the alarm (not the buzzer: section) — see docs/buzzer-wiring.md
+# If your module is common anode, set common_anode: true.
 gpio:
   rgb_red: 17
   rgb_green: 27
@@ -60,8 +62,16 @@ rooms:
   - "Kitchen"
   - "Garage"
 
-# When air is bad, buzzer pattern (seconds)
+# When air is bad, buzzer (see docs/buzzer-wiring.md). Passive piezo = use kind: passive.
 buzzer:
+  enabled: true
+  # "passive" = needs a tone (PWM) — 5V piezo modules, Arduino-style buzzer boards.
+  # "active" = internal oscillator, DC on GPIO only.
+  kind: passive
+  frequency_hz: 2500
+  # continuous = sound until air is no longer "bad" (loud; good for alerts).
+  # pulsed = beep in bursts; beep_on / beep_off / repeat_every below apply only to pulsed.
+  pattern: continuous
   beep_on: 0.4
   beep_off: 0.2
   repeat_every: 2.0

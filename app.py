@@ -76,16 +76,13 @@ def _logging_loop() -> None:
 
 
 def _follow_hardware_loop() -> None:
-    last: str | None = None
+    """Push live quality to RGB + buzzer; outputs.set_quality no-ops if label unchanged."""
     while True:
         time.sleep(0.2)
         snap = _get_monitor().get_snapshot()
         q = snap.get("quality")
         if not q:
             continue
-        if q == last:
-            continue
-        last = str(q)
         _get_outputs().set_quality(q)  # type: ignore[arg-type]
 
 
