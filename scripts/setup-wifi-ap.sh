@@ -345,11 +345,23 @@ HPEOF
     pkill -x hostapd 2>/dev/null || true
     sleep 1
     if require_bin hostapd; then
-      log "Verifying hostapd config (hostapd -t)…"
-      if hp_test=$(hostapd -t /etc/hostapd/hostapd.conf 2>&1); then
-        log "hostapd: config OK (hostapd -t)"
+      # hostapd -t can hang on some brcmf / nl80211 stacks; never run it without a time limit
+      HAP_TMO="${HOTSPOT_HOSTAPD_TEST_SEC:-15}"
+      if require_bin timeout; then
+        log "Verifying hostapd config (max ${HAP_TMO}s, then continue on timeout or error)…"
+        set +e
+        hp_test=$(timeout "${HAP_TMO}"s hostapd -t /etc/hostapd/hostapd.conf 2>&1)
+        rc=$?
+        set -e
+        if [[ "$rc" -eq 124 ]]; then
+          log "hostapd -t: timed out (driver quirk on many Pis) — skipping; real test is the next 'Starting hostapd' step. You can set HOTSPOT_HOSTAPD_TEST_SEC=1 in .hotspot.env to shorten the wait."
+        elif [[ "$rc" -eq 0 ]]; then
+          log "hostapd: config OK (hostapd -t)"
+        else
+          log "hostapd -t (exit $rc): $hp_test"
+        fi
       else
-        log "hostapd -t: $hp_test"
+        log "SKIPPING hostapd -t: install  sudo apt install -y coreutils  for the 'timeout' command (on some chips hostapd -t never returns, which blocks setup here)."
       fi
     fi
     log "Enabling hostapd and dnsmasq to start on boot, then restarting dhcpcd (this can take 15–30s on a Pi; not frozen)…"
