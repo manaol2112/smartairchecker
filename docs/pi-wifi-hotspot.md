@@ -35,6 +35,7 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 **Stuck on “Connecting” (often before an IP is assigned)**
 
 - Usually **DHCP did not complete**: **`dnsmasq` is not running**, the AP interface has no **`192.168.4.1`**, or **`HOTSPOT_CAPTIVE=1`** is enabled but `dnsmasq` failed to bind (port **53**). **Try `HOTSPOT_CAPTIVE=0`**, re-run **`./setuphotspot`**, then `sudo journalctl -u dnsmasq -n 30`.
+- If **`192.168.4.1` is missing** in **verify** section 2b, older script versions added **`denyinterfaces wlan0`** in `/etc/dhcpcd.conf` — that **stops** dhcpcd from applying the static address. The current `setup-wifi-ap.sh` removes that and re-applies the IP; **`git pull`** and **`./setuphotspot`**, or manually run **`sudo ip -4 address add 192.168.4.1/24 dev wlan0`** and fix `/etc/dhcpcd.conf` (see script comments).
 - **Password:** must be **at least 8 characters** and match **`.hotspot.env` exactly** (no extra space; avoid weird symbols).
 - **Channel:** if one channel is bad in your area, set **`AP_CHANNEL=6` or `11`** in `.hotspot.env` and re-run.
 - The Pi’s **on-board Wi-Fi** in AP mode is not always solid; a **USB Wi-Fi dongle** and **`AP_IFACE=wlan1`** often fixes “connecting” loops.

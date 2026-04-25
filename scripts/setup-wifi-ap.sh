@@ -63,13 +63,20 @@ fi
 # 192.168.4.1 must exist on the AP iface before dnsmasq can hand out leases (or phones show "unable to connect")
 ensure_classic_ap_ip() {
   local cidr="${STATIC_PREFIX}.1/24"
-  if ! ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -qF "${STATIC_PREFIX}.1/"; then
-    log "No ${STATIC_PREFIX}.1 on $AP_IFACE after dhcpcd — setting address (required for phone DHCP)…"
-    ip link set dev "$AP_IFACE" up 2>/dev/null || true
-    ip -4 address replace "$cidr" dev "$AP_IFACE" 2>/dev/null || ip -4 address add "$cidr" dev "$AP_IFACE" 2>/dev/null || true
+  local have
+  have=0
+  if ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -qF "${STATIC_PREFIX}.1/"; then
+    have=1
   fi
+  if [[ $have -eq 0 ]]; then
+    log "No ${STATIC_PREFIX}.1 on $AP_IFACE — setting address (required for phone DHCP)…"
+  else
+    log "Ensuring ${STATIC_PREFIX}.1/24 is bound to $AP_IFACE (hostapd/AP mode can clear it)…"
+  fi
+  ip link set dev "$AP_IFACE" up 2>/dev/null || true
+  ip -4 address replace "$cidr" dev "$AP_IFACE" 2>/dev/null || ip -4 address add "$cidr" dev "$AP_IFACE" 2>/dev/null || true
   if ! ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -qF "${STATIC_PREFIX}.1/"; then
-    log "ERROR: $AP_IFACE still has no ${STATIC_PREFIX}.1 — check /etc/dhcpcd.conf; phones will not get an IP from dnsmasq."
+    log "ERROR: $AP_IFACE still has no ${STATIC_PREFIX}.1. Old dhcpcd used denyinterfaces+static together (we fix that in setup). Set manually:  sudo ip -4 address add $cidr dev $AP_IFACE"
   else
     log "AP IPv4 on $AP_IFACE: ${STATIC_PREFIX}.1 (OK for dnsmasq DHCP to clients)"
   fi
@@ -196,16 +203,25 @@ setup_classic_ap() {
   ip link set dev "$AP_IFACE" up 2>/dev/null || true
   iw dev "$AP_IFACE" set power_save off 2>/dev/null || true
   DHCPCD_CONF="/etc/dhcpcd.conf"
+  # do NOT use denyinterfaces here: on Raspberry Pi OS, dhcpcd ignores the whole interface, so
+  # the static ip_address in the block below is never applied (no 192.168.4.1, dnsmasq cannot DHCP).
   if ! grep -q "# --- smartair-ap dhcpcd begin ---" "$DHCPCD_CONF" 2>/dev/null; then
     cat >> "$DHCPCD_CONF" <<DHCPEOF
 
 # --- smartair-ap dhcpcd begin --- (setup-wifi-ap.sh)
-denyinterfaces ${AP_IFACE}
 interface ${AP_IFACE}
 static ip_address=${STATIC_PREFIX}.1/24
 nohook wpa_supplicant
 # --- smartair-ap dhcpcd end ---
 DHCPEOF
+  else
+    # one-time fix for systems that got the old block with denyinterfaces
+    if grep -A20 "# --- smartair-ap dhcpcd begin ---" "$DHCPCD_CONF" 2>/dev/null | grep -qE '^[[:space:]]*denyinterfaces[[:space:]]'; then
+      log "Patching /etc/dhcpcd.conf: removing denyinterfaces from smartair block (it prevented static ${STATIC_PREFIX}.1 on some Pi OS images)"
+      if command -v sed &>/dev/null; then
+        sed -i '/# --- smartair-ap dhcpcd begin ---/,/# --- smartair-ap dhcpcd end ---/ {/^[[:space:]]*denyinterfaces/d;}' "$DHCPCD_CONF" 2>/dev/null || true
+      fi
+    fi
   fi
   mkdir -p /etc/dnsmasq.d
   if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
@@ -336,10 +352,20 @@ HPEOF
     elif ! ap_mode_is_up; then
       log "hostapd is running but $AP_IFACE is not in AP mode yet. Driver issue? try USB Wi-Fi (AP_IFACE=wlan1)"
     fi
+    # hostapd (AP bring-up) often drops addresses — set ${STATIC_PREFIX}.1 again for dnsmasq
+    ensure_classic_ap_ip
+    if ! systemctl is-active --quiet dnsmasq 2>/dev/null; then
+      systemctl restart dnsmasq 2>&1 | sed 's/^/  [dnsmasq] /' || true
+    fi
     captive_iptables
   else
+    service dhcpcd restart 2>/dev/null || true
+    sleep 2
+    ensure_classic_ap_ip
     service dnsmasq restart 2>/dev/null || true
     service hostapd restart 2>/dev/null || true
+    sleep 2
+    ensure_classic_ap_ip
     captive_iptables
   fi
 }
