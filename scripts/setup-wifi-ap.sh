@@ -43,6 +43,9 @@ AP_CHANNEL="${AP_CHANNEL:-1}"
 SMARTAIR_PORT="${SMARTAIR_PORT:-5001}"
 CON_NAME="${HOTSPOT_NM_CON_NAME:-SmartAir-AP}"
 STATIC_PREFIX="${HOTSPOT_STATIC:-192.168.4}"
+# Light captive: default 0 = do not forward DNS to Cloudflare on offline demos (avoids huge dnsmasq
+# backlogs and Pi freezes). Set 1 if the Pi has real Internet (e.g. Ethernet) and phones need general DNS.
+HOTSPOT_DNS_UPSTREAM="${HOTSPOT_DNS_UPSTREAM:-0}"
 
 log() { printf "\n[smartair-ap] %s\n" "$*"; }
 die() { log "ERROR: $*"; exit 1; }
@@ -148,7 +151,9 @@ captive_iptables() {
       log "Captive: TCP port 80 on $AP_IFACE → 127.0.0.1:$SMARTAIR_PORT (run ./run; .hotspot.env loads HOTSPOT_CAPTIVE for /generate_204 etc.)"
     fi
   else
-    while iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
+    _ic=0
+    while ((_ic < 32)) && iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
+      _ic=$((_ic + 1))
       iptables -t nat -D PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null || break
     done
     if iptables -t nat -A PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; then
@@ -289,7 +294,8 @@ DHCPEOF
 port=53
 no-resolv
 no-poll
-cache-size=20000
+cache-size=3000
+dns-forward-max=150
 interface=${AP_IFACE}
 ${H_DNS_BIND}
 listen-address=${P_IP}
@@ -302,39 +308,62 @@ dhcp-option=6,${P_IP}
 address=/#/${P_IP}
 DNS_EOF
     else
-      log "HOTSPOT_CAPTIVE: selective-DNS (default) — only known phone check hosts → ${P_IP}; other queries use upstream (less likely to freeze the Pi). Set HOTSPOT_CAPTIVE_WILDCARD=1 in .hotspot.env for the old all-names behavior."
+      DNS_UPSTREAM_CFG=""
+      if [[ "${HOTSPOT_DNS_UPSTREAM:-0}" == "1" ]]; then
+        DNS_UPSTREAM_CFG="server=1.1.1.1
+server=8.8.8.8
+strict-order"
+        log "HOTSPOT_DNS_UPSTREAM=1: non-probe hostnames are forwarded to 1.1.1.1/8.8.8.8 (use when the Pi has a default route to the Internet, e.g. Ethernet)."
+      else
+        log "HOTSPOT_DNS_UPSTREAM=0 (default): no upstream resolvers — offline-safe. Unknown hostnames are not forwarded (avoids multi-second DNS stalls that freeze the Pi with several phones; set HOTSPOT_DNS_UPSTREAM=1 only if the Pi is online)."
+      fi
+      log "HOTSPOT_CAPTIVE: selective-DNS + local= per probe host (dnsmasq 2.86+ so AAAA/TXT is not sent upstream; reduces stalls). HOTSPOT_CAPTIVE_WILDCARD=1 = heavy catch-all."
       cat >/etc/dnsmasq.d/smartair-ap.conf <<DNS_EOF
-# SmartAir — light captive: DHCP on AP; only well-known *probe* hostnames go to the Pi; others → upstream
-# (Do not send www.google.com / all of gstatic to the Pi or browsing breaks. HOTSPOT_CAPTIVE_WILDCARD=1 = old catch-all.)
+# SmartAir — light captive: DHCP; probe FQDNs point at AP; do not use upstream on offline APs
+# (HOTSPOT_DNS_UPSTREAM=0 default — no server= — avoids backlogs to unreachable 1.1.1.1/8.8.8.8)
 port=53
 no-resolv
 no-poll
-cache-size=20000
+cache-size=3000
+dns-forward-max=150
 interface=${AP_IFACE}
 ${H_DNS_BIND}
 listen-address=${P_IP}
-server=1.1.1.1
-server=8.8.8.8
-strict-order
+${DNS_UPSTREAM_CFG}
 domain-needed
 bogus-priv
 dhcp-authoritative
 dhcp-range=${STATIC_PREFIX}.2,${STATIC_PREFIX}.200,255.255.255.0,24h
 dhcp-option=3,${P_IP}
 dhcp-option=6,${P_IP}
+# local= keeps probe zones from forwarding on dnsmasq 2.86+ (non-A queries)
+local=/connectivitycheck.gstatic.com/
 address=/connectivitycheck.gstatic.com/${P_IP}
+local=/connectivitycheck.android.com/
 address=/connectivitycheck.android.com/${P_IP}
+local=/captive.g.aaplimg.com/
 address=/captive.g.aaplimg.com/${P_IP}
+local=/captive.apple.com/
 address=/captive.apple.com/${P_IP}
+local=/www.msftncsi.com/
 address=/www.msftncsi.com/${P_IP}
+local=/msftncsi.com/
 address=/msftncsi.com/${P_IP}
+local=/msftconnecttest.com/
 address=/msftconnecttest.com/${P_IP}
+local=/connectivitycheck.platform.hicloud.com/
 address=/connectivitycheck.platform.hicloud.com/${P_IP}
+local=/play.googleapis.com/
 address=/play.googleapis.com/${P_IP}
+local=/connect.rom.miui.com/
 address=/connect.rom.miui.com/${P_IP}
+local=/global.market.xiaomi.com/
 address=/global.market.xiaomi.com/${P_IP}
+local=/clients3.google.com/
 address=/clients3.google.com/${P_IP}
+local=/detectportal.firefox.com/
 address=/detectportal.firefox.com/${P_IP}
+local=/gsp-ssl-redirect.ls.apple.com/
 address=/gsp-ssl-redirect.ls.apple.com/${P_IP}
 DNS_EOF
     fi

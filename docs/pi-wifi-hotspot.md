@@ -15,7 +15,7 @@ For a **public demo** you can set **`SMARTAIR_AP_OPEN=1`** in `.hotspot.env` bef
 
 To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE=1`** in `.hotspot.env` and run `./setuphotspot` again. The script will use the **hostapd + dnsmasq** path and:
 
-- Point **all DNS lookups** from clients to the Pi’s address (so “am I online?” checks hit your Pi).
+- In **“light” captive** (default), answer **known connectivity-probe** hostnames on the Pi; **other** lookups are **not** forwarded to the public Internet unless you set **`HOTSPOT_DNS_UPSTREAM=1`** (keeps the Pi stable when it has **no** Internet route, e.g. offline class demos; forwarding to Cloudflare is what used to load/stall dnsmasq badly).
 - **Redirect TCP port 80** to your Flask port (e.g. 5001), so `http://<pi>/` reaches the app without running Flask as root on :80.
 - With **`./run`**, the Flask app registers common **connectivity-check paths** (for example `/generate_204`, `/hotspot-detect.html`) and **302-redirects** them to your project URL.
 
@@ -24,7 +24,7 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 **Checklist: auto-redirect (captive) when the phone is already on your Wi-Fi**
 
 1. In **`.hotspot.env`:** `HOTSPOT_CAPTIVE=1` (and usually `HOTSPOT_USE_CLASSIC=1` for the full hostapd path).  
-2. Re-run **`./setuphotspot`** on the Pi so **dnsmasq** resolves *all* hostnames to the Pi and **iptables** sends **:80** to your Flask port.  
+2. Re-run **`./setuphotspot`** on the Pi so **dnsmasq** serves probe hostnames to the AP address (light mode) and **iptables** sends **:80** to your Flask port.  
 3. Run **`./run`**. On startup, the app should print **`Captive-style redirects: enabled → http://...`**; if you do not see that, set **`HOTSPOT_CAPTIVE=1`**, or in **`config.yaml`** set **`server.captive_portal: true`**, and confirm **`.hotspot.state`** (created by setup) includes `HOTSPOT_CAPTIVE=1`.  
 4. **Not everything auto-opens:** if the phone uses **HTTPS** to Google/Apple (common on new Android), the Pi **cannot** fake that without its own CA — the OS may only show a **“Sign in to network”** notification; the user can tap that to open a mini-browser (often the redirect works).  
 5. If DHCP broke when captive was on, you may have set **`HOTSPOT_CAPTIVE=0`**; see *Troubleshooting* above, then re-enable when stable.
@@ -47,7 +47,7 @@ To nudge phones toward your dashboard after they connect, set **`HOTSPOT_CAPTIVE
 - **Password:** must be **at least 8 characters** and match **`.hotspot.env` exactly** (no extra space; avoid weird symbols).
 - **Channel:** if one channel is bad in your area, set **`AP_CHANNEL=6` or `11`** in `.hotspot.env` and re-run.
 - The Pi’s **on-board Wi-Fi** in AP mode is not always solid; a **USB Wi-Fi dongle** and **`AP_IFACE=wlan1`** often fixes “connecting” loops.
-- **Pi slows down or “freezes” with captive mode and several phones** — the old `address=/#/…` in dnsmasq sent **every** DNS name to the Pi, so the phone’s apps could hammer the Pi. The setup now defaults to a **“light” captive** (only a list of well-known *connectivity-check* hostnames go to the Pi; other domains use upstream resolvers). Do **not** set **`HOTSPOT_CAPTIVE_WILDCARD=1`** unless you know you need the old catch-all. If the desktop is unresponsive, use **Ethernet** to SSH, or a **local keyboard** and **Ctrl+Alt+F1** to a TTY, then: **`sudo killall -9 hostapd dnsmasq`** and **`sudo ./scripts/restore-client-wifi.sh`**. A power cycle is the last resort.
+- **Pi slows down or “freezes” with captive mode and several phones** — the old `address=/#/…` in dnsmasq sent **every** DNS name to the Pi, so the phone’s apps could hammer the Pi. The default **“light” captive** only maps well-known *connectivity-check* hostnames; **other** names are not forwarded to Cloudflare unless **`HOTSPOT_DNS_UPSTREAM=1`**. (Forwarding when the Pi is **offline** used to back up **dnsmasq** with long upstream timeouts and made `restore-client-wifi` hard to run.) Do **not** set **`HOTSPOT_CAPTIVE_WILDCARD=1`** unless you need the old catch-all. If the desktop is unresponsive, use **Ethernet** to SSH, or a **local keyboard** and **Ctrl+Alt+F1** to a TTY, then: **`sudo killall -9 hostapd dnsmasq`** and **`sudo ./scripts/restore-client-wifi.sh`**. A power cycle is the last resort.
 - **“Couldn’t get an IP / IP configuration failure”** (Android / iOS): the phone joined the open AP but **dnsmasq did not hand out DHCP**. The setup now starts **hostapd before dnsmasq**, restarts **dnsmasq** after the AP is up, allows **UDP 67** in **ufw** when the firewall is on, and uses **`bind-interfaces`** for the AP (override with **`HOTSPOT_DNSMASQ_BIND_DYNAMIC=1`** in `.hotspot.env` if `dnsmasq` fails to start). Check **`sudo systemctl status dnsmasq`**, **`sudo journalctl -u dnsmasq -b`**, and **`sudo ./scripts/verify-hotspot.sh`** (see whether UDP 67 is listening).
 
 ## What the scripts do
