@@ -37,23 +37,52 @@ if [[ $(id -u) -ne 0 ]]; then
   exit 1
 fi
 
+# Any systemctl can block if D-Bus is wedged; always bound by time (and prefer kill before systemctl for hotspot daemons)
+run_with_timeout() {
+  local sec="$1"
+  shift
+  if command -v timeout &>/dev/null; then
+    timeout "$sec" "$@"
+    return $?
+  fi
+  "$@" &
+  local pid=$! w=0
+  while (( w < sec )); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid"
+      return $?
+    fi
+    sleep 1
+    w=$((w + 1))
+  done
+  kill -TERM "$pid" 2>/dev/null || true
+  sleep 1
+  kill -9 "$pid" 2>/dev/null || true
+  wait "$pid" 2>/dev/null || true
+  return 124
+}
+
 log "Removing captive iptables :80 → :$SMARTAIR_PORT (if any)…"
 if declare -F hotspot_captive_nat_remove &>/dev/null; then
   hotspot_captive_nat_remove "$AP_IFACE" "$SMARTAIR_PORT" || true
 else
-  while iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
+  _n=0
+  while ((_n < 32)) && iptables -t nat -C PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null; do
+    _n=$((_n + 1))
     iptables -t nat -D PREROUTING -i "$AP_IFACE" -p tcp --dport 80 -j REDIRECT --to-ports "$SMARTAIR_PORT" 2>/dev/null || break
   done
 fi
 
-log "Stopping hostapd and dnsmasq (SIGKILL if needed so SSH can recover)…"
+log "Killing hostapd + dnsmasq first (avoids a stuck systemctl stop when D-Bus is slow)…"
 set +e
-systemctl --no-block stop hostapd 2>/dev/null
-systemctl --no-block stop dnsmasq 2>/dev/null
-sleep 1
 killall -9 hostapd 2>/dev/null || true
 killall -9 dnsmasq 2>/dev/null || true
+pkill -9 -x hostapd 2>/dev/null || true
+pkill -9 -x dnsmasq 2>/dev/null || true
 sleep 1
+log "systemctl --no-block stop (best effort, 12s max)…"
+run_with_timeout 12 systemctl --no-block stop hostapd 2>/dev/null || true
+run_with_timeout 12 systemctl --no-block stop dnsmasq 2>/dev/null || true
 set -e
 if pgrep -x hostapd &>/dev/null; then
   pkill -9 -x hostapd 2>/dev/null || true
@@ -68,23 +97,27 @@ if ip -4 -o addr show dev "$AP_IFACE" 2>/dev/null | grep -q .; then
 fi
 ip link set dev "$AP_IFACE" up 2>/dev/null || true
 
-if systemctl is-failed NetworkManager 2>/dev/null; then
+set +e
+run_with_timeout 6 systemctl is-failed NetworkManager 2>/dev/null
+_nmf=$?
+set -e
+# 0 = unit is in failed state; 124 = timeout (skip; D-Bus may be wedged)
+if [[ "$_nmf" -eq 0 ]]; then
   log "NetworkManager: reset-failed (after kill during hotspot)…"
-  systemctl reset-failed NetworkManager 2>/dev/null || true
+  run_with_timeout 6 systemctl reset-failed NetworkManager 2>/dev/null || true
 fi
 
-log "Starting NetworkManager (timeout 45s)…"
+log "Starting NetworkManager (45s max — if this returns 124, D-Bus may be stuck; try: sudo reboot)…"
 set +e
-if command -v timeout &>/dev/null; then
-  timeout 45s systemctl start NetworkManager
-  rc=$?
-else
-  systemctl start NetworkManager
-  rc=$?
-fi
+run_with_timeout 45 systemctl start NetworkManager
+rc=$?
 set -e
 if [[ "$rc" -ne 0 ]]; then
-  log "NetworkManager start failed (rc=$rc). If Pi is very stuck:  sudo reboot"
+  if [[ "$rc" -eq 124 ]]; then
+    log "Timed out (systemctl start); D-Bus or systemd may be wedged. Recovery:  sudo reboot"
+  else
+    log "NetworkManager start failed (rc=$rc). If Pi is very stuck:  sudo reboot"
+  fi
   log "  journal:  journalctl -u NetworkManager -b -n 30"
   exit 1
 fi
