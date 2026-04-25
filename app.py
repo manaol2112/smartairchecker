@@ -93,6 +93,21 @@ def create_app() -> Flask:
     return app
 
 
+def _ap_ip_from_hotspot_state() -> str:
+    root = Path(__file__).resolve().parent
+    for name in (".hotspot.state",):
+        p = root / name
+        if not p.is_file():
+            continue
+        for raw in p.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.split("#", 1)[0].strip()
+            if line.startswith("AP_IP="):
+                v = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if v:
+                    return v
+    return "192.168.4.1"
+
+
 def _load_captive_from_hotspot_files() -> None:
     """Apply HOTSPOT_CAPTIVE from .hotspot.state / .hotspot.env so ./run matches ./setuphotspot."""
     if (os.environ.get("HOTSPOT_CAPTIVE") or "").lower() in ("1", "true", "yes"):
@@ -206,7 +221,23 @@ def run() -> None:
     host = s.get("host", "0.0.0.0")
     default_port = int(s.get("port", 5001))
     port = int(os.environ.get("SMARTAIR_PORT", str(default_port)))
-    print(
-        f"\n  Air project page → http://127.0.0.1:{port}   (on your Pi, use the Pi’s IP and this port)\n"
+    ap_ip = _ap_ip_from_hotspot_state()
+    captive = (os.environ.get("HOTSPOT_CAPTIVE") or "").lower() in (
+        "1",
+        "true",
+        "yes",
     )
+    print(f"\n  This machine → http://127.0.0.1:{port}/")
+    print(f"  Phones on the SmartAir AP → http://{ap_ip}:{port}/  (default app port)")
+    if captive:
+        print(
+            f"  With HOTSPOT_CAPTIVE=1 and ./setuphotspot, http://{ap_ip}/ (port 80) should "
+            f"forward to this app; if it does not, check ufw and iptables NAT (see verify-hotspot)."
+        )
+    else:
+        print(
+            f"  The app is not on port 80. Without HOTSPOT_CAPTIVE, http://{ap_ip}/ will not reach "
+            f"Flask; use the URL with :{port}."
+        )
+    print()
     app.run(host=host, port=port, debug=False, threaded=True)

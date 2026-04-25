@@ -125,6 +125,39 @@ echo "=== 6) Self-scan (optional; many Pis cannot see their *own* AP in scan) ==
 echo "  If sections 2–3 look good, use another device to list networks — or walk closer"
 echo "  to the Pi (2.4 GHz, low power on internal Wi-Fi)."
 
+AP_IP="${AP_IP:-192.168.4.1}"
+SMARTAIR_PORT="${SMARTAIR_PORT:-5001}"
+echo ""
+echo "=== 7) HTTP / Flask (why http://$AP_IP/ fails but the server is running) ==="
+echo "  The app listens on TCP $SMARTAIR_PORT, not 80. Phones should open:"
+echo "    http://$AP_IP:$SMARTAIR_PORT/"
+if command -v ss &>/dev/null; then
+  if ss -tlnp 2>/dev/null | grep -qE ":${SMARTAIR_PORT}\b"; then
+    echo "  OK: something is listening on TCP $SMARTAIR_PORT (likely Flask if ./run is active)."
+  else
+    echo "  WARNING: nothing on TCP $SMARTAIR_PORT — start the app: ./run"
+  fi
+fi
+if command -v ufw &>/dev/null; then
+  if ufw status 2>/dev/null | grep -qiE 'Status:\s*active'; then
+    echo "  ufw: active — setuphotspot with HOTSPOT_CAPTIVE=1 should add rules for 80 and $SMARTAIR_PORT on $AP_IFACE."
+    ufw status 2>/dev/null | sed 's/^/    /' | head -25
+  else
+    echo "  ufw: inactive or not installed"
+  fi
+fi
+if command -v iptables &>/dev/null; then
+  echo "  iptables nat PREROUTING (captive :80 → :$SMARTAIR_PORT; empty if HOTSPOT_CAPTIVE=0 or rule missing):"
+  iptables -t nat -L PREROUTING -n -v 2>/dev/null | sed 's/^/    /' || true
+  echo "  If HOTSPOT_CAPTIVE=1, you should see REDIRECT 80 to $SMARTAIR_PORT. Re-run: ./setuphotspot"
+fi
+if command -v curl &>/dev/null; then
+  c1=""; c80=""
+  c1=$(curl -sS -m 2 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${SMARTAIR_PORT}/" 2>/dev/null) || c1="fail"
+  c80=$(curl -sS -m 2 -o /dev/null -w '%{http_code}' "http://127.0.0.1:80/" 2>/dev/null) || c80="fail"
+  echo "  curl from Pi: 127.0.0.1:${SMARTAIR_PORT} → ${c1} (expect 2xx)   127.0.0.1:80 → ${c80} (2xx if NAT redirect to Flask; else connection refused is OK)"
+fi
+
 echo ""
 echo "=== Hints (phones do not list the network) ==="
 echo "  - The Pi's built-in Wi-Fi is *not* always reliable in AP mode. A cheap USB"

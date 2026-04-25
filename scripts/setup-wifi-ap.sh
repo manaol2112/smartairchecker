@@ -93,13 +93,19 @@ ap_mode_is_up() {
   iw dev "$AP_IFACE" info 2>/dev/null | grep -qi "type ap"
 }
 
-# UFW/iptables: phones need UDP 67 to the Pi; some images have DROP in INPUT
+# UFW/iptables: phones need UDP 67; captive also needs :80 and app TCP port into Flask after NAT REJECT
 hotspot_allow_dhcp_firewall() {
   if require_bin ufw; then
     if ufw status 2>/dev/null | grep -qiE 'Status:\s*active'; then
       ufw allow in on "$AP_IFACE" to any port 67 proto udp 2>&1 | sed 's/^/  [ufw] /' || true
       if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
         ufw allow in on "$AP_IFACE" to any port 53 proto udp 2>&1 | sed 's/^/  [ufw] /' || true
+        ufw allow in on "$AP_IFACE" to any port 80 proto tcp 2>&1 | sed 's/^/  [ufw] /' || true
+        ufw allow in on "$AP_IFACE" to any port "$SMARTAIR_PORT" proto tcp 2>&1 | sed 's/^/  [ufw] /' || true
+        log "ufw: allowed TCP 80 and $SMARTAIR_PORT on $AP_IFACE (phones use :80; Flask sits on :$SMARTAIR_PORT; NAT REDIRECT must reach the app)"
+      else
+        ufw allow in on "$AP_IFACE" to any port "$SMARTAIR_PORT" proto tcp 2>&1 | sed 's/^/  [ufw] /' || true
+        log "ufw: allowed TCP $SMARTAIR_PORT on $AP_IFACE (open http://<pi-ip>:$SMARTAIR_PORT/ — no :80 without HOTSPOT_CAPTIVE+iptables)"
       fi
     fi
   fi
@@ -108,6 +114,18 @@ hotspot_allow_dhcp_firewall() {
       if ! iptables -C INPUT -i "$AP_IFACE" -p udp -m udp --dport 67 -j ACCEPT 2>/dev/null; then
         if iptables -I INPUT 1 -i "$AP_IFACE" -p udp -m udp --dport 67 -j ACCEPT 2>/dev/null; then
           log "iptables: added INPUT accept for UDP 67 on $AP_IFACE (firewall was DROP/REJECT)"
+        fi
+      fi
+      if [[ "${HOTSPOT_CAPTIVE:-0}" == "1" ]]; then
+        if ! iptables -C INPUT -i "$AP_IFACE" -p tcp -m tcp --dport 80 -j ACCEPT 2>/dev/null; then
+          iptables -I INPUT 1 -i "$AP_IFACE" -p tcp -m tcp --dport 80 -j ACCEPT 2>/dev/null && log "iptables: INPUT accept TCP 80 on $AP_IFACE (http://<ip>/ from phones)" || true
+        fi
+        if ! iptables -C INPUT -i "$AP_IFACE" -p tcp -m tcp --dport "$SMARTAIR_PORT" -j ACCEPT 2>/dev/null; then
+          iptables -I INPUT 1 -i "$AP_IFACE" -p tcp -m tcp --dport "$SMARTAIR_PORT" -j ACCEPT 2>/dev/null && log "iptables: INPUT accept TCP $SMARTAIR_PORT on $AP_IFACE" || true
+        fi
+      else
+        if ! iptables -C INPUT -i "$AP_IFACE" -p tcp -m tcp --dport "$SMARTAIR_PORT" -j ACCEPT 2>/dev/null; then
+          iptables -I INPUT 1 -i "$AP_IFACE" -p tcp -m tcp --dport "$SMARTAIR_PORT" -j ACCEPT 2>/dev/null && log "iptables: INPUT accept TCP $SMARTAIR_PORT on $AP_IFACE" || true
         fi
       fi
     fi
@@ -562,6 +580,13 @@ if [[ $use_nm -eq 1 ]]; then
   : # IP_AP / METHOD set in try_nm_ap
 else
   setup_classic_ap
+fi
+
+# hostapd path runs these inside setup_classic_ap; NetworkManager path never entered that
+# function — must still open ufw/INPUT for the app port (and 80 if HOTSPOT_CAPTIVE* iptables is used)
+if [[ $use_nm -eq 1 ]]; then
+  hotspot_allow_dhcp_firewall
+  captive_iptables
 fi
 
 # Machine-written (safe to delete on Pi; not committed if .gitignore)
