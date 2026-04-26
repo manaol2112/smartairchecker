@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# One-time (or repeat) setup on the Pi: join an open Wi‑Fi (e.g. phone hotspot) with a static IP
+# and optionally install systemd to run ./run on boot. Headless Science Fair flow.
+#
+#   ./setupclientdemo
+#
+# First run copies scripts/client-demo.env.example → .client-demo.env — edit SSID + static IP, then run again.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+EXAMPLE="$ROOT/scripts/client-demo.env.example"
+ENVF="${CLIENT_DEMO_ENV:-$ROOT/.client-demo.env}"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  echo "Usage: $0"
+  echo "  1) Copies scripts/client-demo.env.example to .client-demo.env if missing"
+  echo "  2) sudo: NetworkManager profile (open SSID + static IPv4)"
+  echo "  3) sudo: systemd service smartair-web.service (./run on boot)"
+  echo "See: docs/client-demo-headless.md"
+  exit 0
+fi
+
+if [[ ! -f "$EXAMPLE" ]]; then
+  echo "Missing $EXAMPLE — run from the smartairchecker repo root." >&2
+  exit 1
+fi
+
+if [[ ! -f "$ENVF" ]]; then
+  cp "$EXAMPLE" "$ENVF"
+  echo "Created $ENVF — edit CLIENT_DEMO_SSID, CLIENT_DEMO_IPV4, CLIENT_DEMO_GW for your phone hotspot."
+  echo "Then run again:  $0"
+  exit 0
+fi
+
+if [[ $(id -u) -eq 0 ]]; then
+  echo "Run as a normal user (not sudo). The script will call sudo when needed." >&2
+  exit 1
+fi
+
+echo "[setupclientdemo] Wi‑Fi profile (sudo)…"
+sudo env CLIENT_DEMO_ENV="$ENVF" "$ROOT/scripts/setup-client-wifi.sh" "$ENVF"
+echo ""
+echo "[setupclientdemo] systemd service (sudo)…"
+sudo env CLIENT_DEMO_ENV="$ENVF" "$ROOT/scripts/install-smartair-service.sh" "$ENVF"
+echo ""
+echo "Start the app now:  sudo systemctl start smartair-web"
+echo "Generate URL QR:   AP_IP=… SMARTAIR_PORT=5001 ./scripts/generate-demo-qrs.sh  (or set CLIENT_DEMO_IPV4; see docs)"
+echo "Full help:         docs/client-demo-headless.md"
+exit 0

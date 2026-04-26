@@ -26,6 +26,25 @@ if [[ -f "$STATE_FILE" ]]; then
   source "$STATE_FILE"
   set +a
 fi
+CLIENT_DEMO_FILE="${ROOT}/.client-demo.env"
+# shellcheck source=/dev/null
+if [[ -f "$CLIENT_DEMO_FILE" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "$CLIENT_DEMO_FILE"
+  set +a
+  if [[ -n "${CLIENT_DEMO_IPV4:-}" ]]; then
+    # e.g. 192.168.43.100/24 → 192.168.43.100
+    export AP_IP="${CLIENT_DEMO_IPV4%%/*}"
+  fi
+  if [[ -n "${CLIENT_DEMO_SSID:-}" ]]; then
+    export SMARTAIR_AP_SSID="$CLIENT_DEMO_SSID"
+    export SMARTAIR_AP_OPEN=1
+  fi
+  if [[ -n "${CLIENT_DEMO_URL:-}" ]]; then
+    export SMARTAIR_URL="$CLIENT_DEMO_URL"
+  fi
+fi
 
 SMARTAIR_AP_OPEN="${SMARTAIR_AP_OPEN:-0}"
 # shellcheck source=hotspot-normalize.sh
