@@ -21,13 +21,19 @@ gpio:
 air_quality:
   # Minimum gas ohm to consider “readings stable”
   min_gas_ohms: 1000
-  # Thresholds: good >= good_min, moderate between moderate_min and good_min, else bad
+  # When use_relative_score is false: good >= good_min, moderate in [moderate_min, good_min)
+  # When use_relative_score is true: the LED / chip / buzzer use score_label_* on the 0-100
+  # score; good_min / moderate_min do not set the text color (avoids e.g. score 30 with “good”).
   good_min: 20000
   moderate_min: 10000
   use_relative_score: true
   # 0-100 gas score: span (higher ohm = cleaner; tune to your room’s typical range)
   scale_min_ohms: 10000
   scale_max_ohms: 200000
+  # If score is in [score_label_moderate_min, score_label_good_min) → “moderate”; if >= good →
+  # “good”; else “bad”. Rough thirds of the dial: 0-33 / 34-66 / 67-100.
+  score_label_good_min: 67
+  score_label_moderate_min: 34
   # Seed value until the gas heater stabilizes; not used for the 0-100 line map above.
   baseline_ohms: 50000
 
