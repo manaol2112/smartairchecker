@@ -24,10 +24,30 @@ if [[ -f "$ENV_FILE" ]]; then
   source "$ENV_FILE" 2>/dev/null || true
   set +a
 fi
-U="${CLIENT_DEMO_USER:-${SUDO_USER:-pi}}"
-if ! id -u "$U" &>/dev/null; then
-  echo "User $U does not exist. Set CLIENT_DEMO_USER in $ENV_FILE" >&2
+# Do not require "pi" — many images use a different first user; .client-demo.env may still say pi.
+U=""
+if [[ -n "${CLIENT_DEMO_USER:-}" ]] && id -u "$CLIENT_DEMO_USER" &>/dev/null; then
+  U="$CLIENT_DEMO_USER"
+fi
+if [[ -z "$U" && -n "${SUDO_USER:-}" ]] && id -u "$SUDO_USER" &>/dev/null; then
+  U="$SUDO_USER"
+fi
+if [[ -z "$U" ]]; then
+  U="$(getent passwd 2>/dev/null | awk -F: '$3==1000{print $1; exit}')"
+fi
+if [[ -z "$U" ]]; then
+  echo "Could not find a valid login user for the systemd service." >&2
+  echo "On the Pi, as the user who owns this project, run:  whoami" >&2
+  echo "Put that in $ENV_FILE:  CLIENT_DEMO_USER=<name>" >&2
+  echo "Then:  sudo $0" >&2
   exit 1
+fi
+if ! id -u "$U" &>/dev/null; then
+  echo "User $U is not valid. Set CLIENT_DEMO_USER in $ENV_FILE to the output of:  whoami" >&2
+  exit 1
+fi
+if [[ -n "${CLIENT_DEMO_USER:-}" ]] && ! id -u "$CLIENT_DEMO_USER" &>/dev/null; then
+  echo "[install-smartair-service] Note: CLIENT_DEMO_USER=$CLIENT_DEMO_USER does not exist — using $U. Set CLIENT_DEMO_USER=$U in $ENV_FILE" >&2
 fi
 UGROUP="$(id -gn "$U")"
 SUPP=""

@@ -33,7 +33,7 @@ From the project root:
    - **`CLIENT_DEMO_PSK`** — hotspot password (**required** for iPhone and most Android; same as on the phone). Alias: **`CLIENT_DEMO_PASSWORD`**
    - **`CLIENT_DEMO_IPV4`** — e.g. `192.168.43.100/24` or `172.20.10.2/28`
    - **`CLIENT_DEMO_GW`** — the hotspot gateway (often same as the phone’s client-side IP in `ip route`)
-   - **`CLIENT_DEMO_USER`** — usually `pi`
+   - **`CLIENT_DEMO_USER`** — optional; the installer picks the user who runs **`./setupclientdemo`** (or the first `uid` **1000**). If the example had **`pi`** and your image uses another login, either leave **`CLIENT_DEMO_USER`** unset or set it to the output of **`whoami`**
 
 3. Run **`./setupclientdemo`** again (not as `sudo` directly on the file; the script uses `sudo` for the right steps). This:
    - Joins the Wi‑Fi with **`nmcli device wifi connect`** (open or WPA2), then applies **static IPv4** and autoconnect
