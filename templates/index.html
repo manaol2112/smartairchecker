@@ -2567,12 +2567,8 @@
           const chartUrl = "/api/room_time_chart?date=" + encodeURIComponent(selectedChartDate);
           const [a, b] = await Promise.all([fetch("/api/status"), fetch(chartUrl)]);
           const st = await a.json();
-          const chartPayload = await b.json();
-          if (chartPayload && chartPayload.error) {
-            console.error(chartPayload.error);
-            return;
-          }
-          if (chartPayload.available_dates) syncDateDropdown(chartPayload.available_dates);
+          // Apply status and live numbers *before* parsing the chart — on the Pi, chart JSON
+          // can be slow (large SQLite reads). Do not keep “Checking data source…” on error.
           setSensorSourceIndicator(st);
           const s = st.sensor || {};
           const warm = el("gasWarmHint");
@@ -2606,6 +2602,13 @@
             el("clock").textContent = "Last update: waiting for reading…";
           }
           if (st.room) roomSelect.value = st.room;
+
+          const chartPayload = await b.json();
+          if (chartPayload && chartPayload.error) {
+            console.error(chartPayload.error);
+            return;
+          }
+          if (chartPayload.available_dates) syncDateDropdown(chartPayload.available_dates);
           updateTimeChart(chartPayload);
         } catch (e) {
           console.error(e);

@@ -76,6 +76,7 @@ def _ensure_db() -> None:
                 """
             )
             conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_reading_ts ON reading (ts)")
             conn.commit()
         finally:
             conn.close()
@@ -189,13 +190,20 @@ def get_distinct_reading_dates() -> list[str]:
     _ensure_db()
     conn = _connect()
     try:
-        cur = conn.execute("SELECT ts FROM reading")
-        days: set[str] = set()
-        for (ts,) in cur.fetchall():
-            days.add(_local_date_iso(float(ts)))
+        # One group per day (matches Pi local time via SQLite `localtime`); avoids scanning
+        # every row into Python.
+        cur = conn.execute(
+            "SELECT d FROM ("
+            "  SELECT date(ts, 'unixepoch', 'localtime') AS d FROM reading"
+            "  WHERE ts IS NOT NULL"
+            "  GROUP BY d"
+            ")"
+            " WHERE d != ''"
+            " ORDER BY d DESC"
+        )
+        return [str(row[0]) for row in cur if row[0]]
     finally:
         conn.close()
-    return sorted(days, reverse=True)
 
 
 def get_room_time_period_chart(filter_date: str | None) -> dict[str, Any]:
@@ -217,10 +225,34 @@ def get_room_time_period_chart(filter_date: str | None) -> dict[str, Any]:
 
     conn = _connect()
     try:
-        cur = conn.execute("SELECT ts, room, score FROM reading")
-        for ts, room, sc in cur.fetchall():
+        sql_date_filter = False
+        if (
+            filter_date
+            and len(filter_date) == 10
+            and filter_date[4] == "-"
+            and filter_date[7] == "-"
+        ):
+            try:
+                d0 = datetime.date.fromisoformat(filter_date)
+            except ValueError:
+                d0 = None
+            if d0 is not None:
+                t0 = datetime.datetime.combine(d0, datetime.time.min)
+                t1 = t0 + datetime.timedelta(days=1)
+                start, end = t0.timestamp(), t1.timestamp()
+                cur = conn.execute(
+                    "SELECT ts, room, score FROM reading WHERE ts >= ? AND ts < ?",
+                    (start, end),
+                )
+                sql_date_filter = True
+            else:
+                cur = conn.execute("SELECT ts, room, score FROM reading")
+        else:
+            cur = conn.execute("SELECT ts, room, score FROM reading")
+        for row in cur:
+            ts, room, sc = row[0], row[1], row[2]
             tsf = float(ts)
-            if filter_date and _local_date_iso(tsf) != filter_date:
+            if filter_date and not sql_date_filter and _local_date_iso(tsf) != filter_date:
                 continue
             key = classify_time_period_for_timestamp(tsf)
             if key is None:
