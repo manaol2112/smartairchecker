@@ -1,7 +1,10 @@
 # Headless client demo: phone hotspot, static IP, auto-start
 
-Use this when the **Raspberry Pi is a Wi‑Fi client** to your **phone’s hotspot** (e.g. “Sophia Science Project”), not when the Pi is the access point (that flow is in `pi-wifi-hotspot.md` and `./setuphotspot`).  
-**iPhone personal hotspot and most Android hotspots use WPA2** — put the same password in **`CLIENT_DEMO_PSK`** in `.client-demo.env`. Only leave PSK empty if the network is **truly open** (no password).
+Use this when the **Raspberry Pi is a Wi‑Fi client** to your **phone’s hotspot** (e.g. “Sophia Science Project”), not when the Pi is the access point (that flow is in `pi-wifi-hotspot.md` and `./setuphotspot`).
+
+**Android hotspot (common case):** the examples use **`192.168.43.x/24`**, gateway **`192.168.43.1`**, and **WPA2** — set **`CLIENT_DEMO_PSK`** to the password the phone shows for the hotspot. The defaults in `client-demo.env.example` match a typical **Android** tether. **iPhone** uses a different subnet (see below); this doc’s paths assume Android unless you change **`.client-demo.env`**.
+
+Only leave **`CLIENT_DEMO_PSK`** empty if the network is **truly open** (no password), which is uncommon on phone hotspots.
 
 **Goal:** after power-on, the Pi joins your hotspot, gets a **fixed IPv4**, runs **`./run`**, and you can print a **QR** with a **stable** URL (same IP every time).
 
@@ -14,10 +17,11 @@ ip -4 route | grep default
 ip -4 addr show dev wlan0
 ```
 
-- **Many Android** hotspots: gateway **`192.168.43.1`**, you can often use a static like **`192.168.43.100/24`**.
-- **Many iPhone/iPad** hotspots: **`172.20.10.0/28`**, use something like **`172.20.10.2/28`**, gateway **`172.20.10.1`** (only a few addresses; avoid clashes).
+- **Android** Personal Hotspot / Wi‑Fi hotspot: often gateway **`192.168.43.1`**, **`192.168.43.0/24`**. A static like **`192.168.43.100/24`** is a good first try (the repo defaults). Pick an address your phone is unlikely to assign to another device (e.g. high `.100`–`.150` is usually fine in `/24`).
 
-Pick an address the phone is **unlikely** to hand out to another device (e.g. `.100` in a large Android range, or a low number in a tiny iOS pool).
+- **iPhone / iPad** (if you ever switch): almost always **`172.20.10.0/28`**, **not** `192.168.43.x`. See **`ip -4 a show`** after a DHCP join and adjust **`.client-demo.env`**.
+
+**If the page does not load** from your phone, on the Pi run **`./scripts/verify-client-demo.sh`**. Common causes: **wrong static** (mismatch to what `ip route` actually shows on DHCP), static not applied (re-run **`sudo ./scripts/setup-client-wifi.sh`**, it cycles the link), **ufw** blocking the port, or the app not running.
 
 ## 2) Create `.client-demo.env`
 

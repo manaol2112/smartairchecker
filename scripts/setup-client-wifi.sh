@@ -29,8 +29,9 @@ CLIENT_DEMO_IPV4="${CLIENT_DEMO_IPV4:-}"
 CLIENT_DEMO_GW="${CLIENT_DEMO_GW:-}"
 CLIENT_DEMO_DNS="${CLIENT_DEMO_DNS:-$CLIENT_DEMO_GW}"
 IFACE="${CLIENT_DEMO_IFACE:-wlan0}"
-# iPhone / most Android hotspots use WPA2 — set one of these (same as the phone shows)
+# Android and iPhone hotspots usually use WPA2 — set the phone’s hotspot password here
 CLIENT_DEMO_PSK="${CLIENT_DEMO_PSK:-${CLIENT_DEMO_PASSWORD:-}}"
+SMARTAIR_PORT="${SMARTAIR_PORT:-5001}"
 
 if ! command -v nmcli &>/dev/null; then
   echo "This script needs NetworkManager (nmcli). Install:  sudo apt-get install -y network-manager" >&2
@@ -84,6 +85,10 @@ else
 fi
 
 echo "[setup-client-wifi] Applying static IPv4 and autoconnect…"
+# Bind profile to this Wi‑Fi device (avoids a stale/ambiguous connection name)
+if [[ -n "$IFACE" ]]; then
+  nmcli connection modify "$CLIENT_DEMO_CONN_NAME" connection.interface-name "$IFACE" 2>/dev/null || true
+fi
 nmcli connection modify "$CLIENT_DEMO_CONN_NAME" \
   connection.autoconnect yes \
   connection.autoconnect-priority 50 \
@@ -92,11 +97,27 @@ nmcli connection modify "$CLIENT_DEMO_CONN_NAME" \
   ipv4.gateway "$CLIENT_DEMO_GW" \
   ipv4.dns "$CLIENT_DEMO_DNS" \
   ipv4.ignore-auto-dns yes \
+  ipv4.never-default no \
+  ipv4.may-fail no \
   ipv4.route-metric 200
 
+# Re-apply: NM often leaves DHCP in place until the link cycles (same bug class as a “connected but wrong IP”)
+echo "[setup-client-wifi] Cycling connection to apply static IP…"
+nmcli connection down id "$CLIENT_DEMO_CONN_NAME" 2>/dev/null || true
+nmcli device disconnect "$IFACE" 2>/dev/null || true
+sleep 2
 if ! nmcli connection up id "$CLIENT_DEMO_CONN_NAME"; then
-  echo "Could not activate the profile after setting static IP. See: journalctl -u NetworkManager -n 40" >&2
+  echo "Could not bring the connection up after static config. See: journalctl -u NetworkManager -n 50" >&2
   exit 1
+fi
+sleep 2
+
+# ufw: default deny can block the Flask port from a phone on the same Wi‑Fi
+if command -v ufw &>/dev/null; then
+  if ufw status 2>/dev/null | grep -qiE 'Status:\s*active'; then
+    echo "[setup-client-wifi] ufw is active — allowing TCP $SMARTAIR_PORT on $IFACE (web UI)…"
+    ufw allow in on "$IFACE" to any port "$SMARTAIR_PORT" proto tcp 2>&1 | sed 's/^/  [ufw] /' || true
+  fi
 fi
 
 echo ""
@@ -107,5 +128,14 @@ else
   echo "  Security: open (no password)"
 fi
 echo "  IPv4: $CLIENT_DEMO_IPV4  gateway $CLIENT_DEMO_GW"
-echo "  Test:  ip -4 a show $IFACE   and  ping -c1 $CLIENT_DEMO_GW"
+if ip -4 -o addr show dev "$IFACE" 2>/dev/null | awk '{print $4}' | grep -qxF "$CLIENT_DEMO_IPV4"; then
+  echo "  Confirmed: $IFACE has $CLIENT_DEMO_IPV4"
+else
+  echo "  WARNING: $IFACE may not have the static address yet. Actual:"
+  ip -4 addr show dev "$IFACE" 2>/dev/null | sed 's/^/    /' || true
+  echo "  Run:  nmcli -f IP4.ADDRESS,IP4.GATEWAY,IP4.METHOD,IP4.ROUTE c show \"$CLIENT_DEMO_CONN_NAME\""
+  echo "  Android: expect 192.168.43.x/24. iPhone: usually 172.20.10.x/28. Compare to: ip -4 a show $IFACE  and  docs/client-demo-headless.md"
+fi
+echo "  Test:  ping -c1 $CLIENT_DEMO_GW  |  from phone:  http://$(echo "$CLIENT_DEMO_IPV4" | cut -d/ -f1):${SMARTAIR_PORT}/"
+echo "  Diagnose:  $ROOT/scripts/verify-client-demo.sh"
 exit 0
