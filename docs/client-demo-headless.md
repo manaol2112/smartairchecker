@@ -1,6 +1,7 @@
 # Headless client demo: phone hotspot, static IP, auto-start
 
-Use this when the **Raspberry Pi is a Wi‑Fi client** to your **phone’s open hotspot** (e.g. “Sophia Science Project”), not when the Pi is the access point (that flow is in `pi-wifi-hotspot.md` and `./setuphotspot`).
+Use this when the **Raspberry Pi is a Wi‑Fi client** to your **phone’s hotspot** (e.g. “Sophia Science Project”), not when the Pi is the access point (that flow is in `pi-wifi-hotspot.md` and `./setuphotspot`).  
+**iPhone personal hotspot and most Android hotspots use WPA2** — put the same password in **`CLIENT_DEMO_PSK`** in `.client-demo.env`. Only leave PSK empty if the network is **truly open** (no password).
 
 **Goal:** after power-on, the Pi joins your hotspot, gets a **fixed IPv4**, runs **`./run`**, and you can print a **QR** with a **stable** URL (same IP every time).
 
@@ -25,12 +26,13 @@ From the project root:
 1. Run **`./setupclientdemo`** once — it creates **`.client-demo.env`** from `scripts/client-demo.env.example`.
 2. Edit **`.client-demo.env`** and set at least:
    - **`CLIENT_DEMO_SSID`** — exact SSID, e.g. `Sophia Science Project`
+   - **`CLIENT_DEMO_PSK`** — hotspot password (**required** for iPhone and most Android; same as on the phone). Alias: **`CLIENT_DEMO_PASSWORD`**
    - **`CLIENT_DEMO_IPV4`** — e.g. `192.168.43.100/24` or `172.20.10.2/28`
    - **`CLIENT_DEMO_GW`** — the hotspot gateway (often same as the phone’s client-side IP in `ip route`)
    - **`CLIENT_DEMO_USER`** — usually `pi`
 
 3. Run **`./setupclientdemo`** again (not as `sudo` directly on the file; the script uses `sudo` for the right steps). This:
-   - Writes a **NetworkManager** profile: auto-connect, **open** Wi‑Fi, **static IPv4**
+   - Joins the Wi‑Fi with **`nmcli device wifi connect`** (open or WPA2), then applies **static IPv4** and autoconnect
    - Installs and enables **`smartair-web.service`**: runs **`./run`** after boot (with a short delay and restart on failure)
 
 4. **Start the service now (optional test):**  

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Configure NetworkManager: auto-connect to an open (no key) Wi‑Fi with a static IPv4.
-# For headless demo: join your phone’s hotspot, stable IP for URL QR. Run on the Pi with sudo.
+# Configure NetworkManager: join a phone hotspot (open *or* WPA2) with static IPv4.
+# Uses "nmcli device wifi connect" first (avoids "Secrets were required" on WPA2 hotspots
+# when a profile was built as if the network were open). Run on the Pi with sudo.
 #
 #   sudo ./scripts/setup-client-wifi.sh
 #   sudo ./scripts/setup-client-wifi.sh /path/to/.client-demo.env
@@ -27,10 +28,9 @@ CLIENT_DEMO_CONN_NAME="${CLIENT_DEMO_CONN_NAME:-smartair-client}"
 CLIENT_DEMO_IPV4="${CLIENT_DEMO_IPV4:-}"
 CLIENT_DEMO_GW="${CLIENT_DEMO_GW:-}"
 CLIENT_DEMO_DNS="${CLIENT_DEMO_DNS:-$CLIENT_DEMO_GW}"
-IFACE_FLAG=()
-if [[ -n "${CLIENT_DEMO_IFACE:-}" ]]; then
-  IFACE_FLAG=(ifname "${CLIENT_DEMO_IFACE}")
-fi
+IFACE="${CLIENT_DEMO_IFACE:-wlan0}"
+# iPhone / most Android hotspots use WPA2 — set one of these (same as the phone shows)
+CLIENT_DEMO_PSK="${CLIENT_DEMO_PSK:-${CLIENT_DEMO_PASSWORD:-}}"
 
 if ! command -v nmcli &>/dev/null; then
   echo "This script needs NetworkManager (nmcli). Install:  sudo apt-get install -y network-manager" >&2
@@ -41,6 +41,10 @@ if [[ -z "$CLIENT_DEMO_SSID" || -z "$CLIENT_DEMO_IPV4" || -z "$CLIENT_DEMO_GW" ]
   echo "Set CLIENT_DEMO_SSID, CLIENT_DEMO_IPV4, CLIENT_DEMO_GW in $ENV_FILE" >&2
   exit 1
 fi
+if ! ip link show "$IFACE" &>/dev/null; then
+  echo "Wi‑Fi interface $IFACE not found. Set CLIENT_DEMO_IFACE (e.g. wlan1 for USB Wi‑Fi)." >&2
+  exit 1
+fi
 
 # Stop Pi-as-AP stack if it was enabled, so the same radio can be a client
 systemctl is-active --quiet hostapd 2>/dev/null && { systemctl stop hostapd 2>/dev/null || true; }
@@ -48,7 +52,6 @@ systemctl is-active --quiet dnsmasq 2>/dev/null && { systemctl stop dnsmasq 2>/d
 systemctl stop hostapd 2>/dev/null || true
 systemctl stop dnsmasq 2>/dev/null || true
 
-# Ensure NetworkManager is running
 systemctl enable NetworkManager 2>/dev/null || true
 if ! systemctl is-active --quiet NetworkManager; then
   systemctl start NetworkManager
@@ -58,45 +61,51 @@ sleep 1
 rfkill unblock wifi 2>/dev/null || true
 nmcli radio wifi on 2>/dev/null || true
 
-# Remove our previous connection profile so the script is idempotent
-nmcli con delete "$CLIENT_DEMO_CONN_NAME" 2>/dev/null || true
+nmcli connection delete "$CLIENT_DEMO_CONN_NAME" 2>/dev/null || true
+nmcli device disconnect "$IFACE" 2>/dev/null || true
+sleep 1
+nmcli device wifi rescan 2>/dev/null || true
+sleep 2
 
-# Open network: key-mgmt none
-if [[ ${#IFACE_FLAG[@]} -gt 0 ]]; then
-  nmcli connection add type wifi con-name "$CLIENT_DEMO_CONN_NAME" "${IFACE_FLAG[@]}" \
-    connection.autoconnect yes connection.autoconnect-priority 50 \
-    ssid "$CLIENT_DEMO_SSID" \
-    802-11-wireless.mode infrastructure \
-    802-11-wireless-security.key-mgmt none \
-    ipv4.method manual \
-    ipv4.addresses "$CLIENT_DEMO_IPV4" \
-    ipv4.gateway "$CLIENT_DEMO_GW" \
-    ipv4.dns "$CLIENT_DEMO_DNS" \
-    ipv4.ignore-auto-dns yes \
-    ipv4.route-metric 200
+echo "[setup-client-wifi] Joining SSID=\"$CLIENT_DEMO_SSID\" on $IFACE…"
+if [[ -n "$CLIENT_DEMO_PSK" ]]; then
+  if ! nmcli -w 120 device wifi connect "$CLIENT_DEMO_SSID" ifname "$IFACE" password "$CLIENT_DEMO_PSK" name "$CLIENT_DEMO_CONN_NAME"; then
+    echo "Wi‑Fi join failed. Check SSID, CLIENT_DEMO_PSK (phone password), and that the hotspot is on." >&2
+    exit 1
+  fi
 else
-  nmcli connection add type wifi con-name "$CLIENT_DEMO_CONN_NAME" \
-    connection.autoconnect yes connection.autoconnect-priority 50 \
-    ssid "$CLIENT_DEMO_SSID" \
-    802-11-wireless.mode infrastructure \
-    802-11-wireless-security.key-mgmt none \
-    ipv4.method manual \
-    ipv4.addresses "$CLIENT_DEMO_IPV4" \
-    ipv4.gateway "$CLIENT_DEMO_GW" \
-    ipv4.dns "$CLIENT_DEMO_DNS" \
-    ipv4.ignore-auto-dns yes \
-    ipv4.route-metric 200
+  # Truly open network (no WPA) — try connect without a key, then with empty password for older nmcli
+  if ! nmcli -w 120 device wifi connect "$CLIENT_DEMO_SSID" ifname "$IFACE" name "$CLIENT_DEMO_CONN_NAME" 2>/dev/null; then
+    if ! nmcli -w 120 device wifi connect "$CLIENT_DEMO_SSID" ifname "$IFACE" password "" name "$CLIENT_DEMO_CONN_NAME" 2>/dev/null; then
+      echo "Open Wi‑Fi join failed. Most phone hotspots use WPA2 — set CLIENT_DEMO_PSK to the hotspot password (iPhone: Settings → Personal Hotspot)." >&2
+      exit 1
+    fi
+  fi
+fi
+
+echo "[setup-client-wifi] Applying static IPv4 and autoconnect…"
+nmcli connection modify "$CLIENT_DEMO_CONN_NAME" \
+  connection.autoconnect yes \
+  connection.autoconnect-priority 50 \
+  ipv4.method manual \
+  ipv4.addresses "$CLIENT_DEMO_IPV4" \
+  ipv4.gateway "$CLIENT_DEMO_GW" \
+  ipv4.dns "$CLIENT_DEMO_DNS" \
+  ipv4.ignore-auto-dns yes \
+  ipv4.route-metric 200
+
+if ! nmcli connection up id "$CLIENT_DEMO_CONN_NAME"; then
+  echo "Could not activate the profile after setting static IP. See: journalctl -u NetworkManager -n 40" >&2
+  exit 1
 fi
 
 echo ""
-echo "[setup-client-wifi] Created NetworkManager profile: $CLIENT_DEMO_CONN_NAME"
-echo "  SSID: $CLIENT_DEMO_SSID  (open)"
-echo "  IPv4: $CLIENT_DEMO_IPV4  gateway $CLIENT_DEMO_GW"
-echo "Bringing the connection up (so you can test now)…"
-if nmcli connection up id "$CLIENT_DEMO_CONN_NAME"; then
-  echo "OK — use: ip -4 a show   and test the web port after ./run or the systemd service"
+echo "[setup-client-wifi] OK — profile: $CLIENT_DEMO_CONN_NAME"
+if [[ -n "$CLIENT_DEMO_PSK" ]]; then
+  echo "  Security: WPA2-PSK (password from CLIENT_DEMO_PSK / CLIENT_DEMO_PASSWORD)"
 else
-  echo "The connection could not be brought up. Check SSID, password (must be open), and IP range vs your phone. See docs/client-demo-headless.md" >&2
-  exit 1
+  echo "  Security: open (no password)"
 fi
+echo "  IPv4: $CLIENT_DEMO_IPV4  gateway $CLIENT_DEMO_GW"
+echo "  Test:  ip -4 a show $IFACE   and  ping -c1 $CLIENT_DEMO_GW"
 exit 0

@@ -39,6 +39,13 @@ if [[ -f "$CLIENT_DEMO_FILE" ]]; then
   fi
   if [[ -n "${CLIENT_DEMO_SSID:-}" ]]; then
     export SMARTAIR_AP_SSID="$CLIENT_DEMO_SSID"
+  fi
+  _client_psk="${CLIENT_DEMO_PSK:-${CLIENT_DEMO_PASSWORD:-}}"
+  if [[ -n "$_client_psk" ]]; then
+    # Phone hotspot is usually WPA2; Wi‑Fi join QR must include the key
+    export SMARTAIR_AP_PASS="$_client_psk"
+    export SMARTAIR_AP_OPEN=0
+  elif [[ -n "${CLIENT_DEMO_SSID:-}" ]]; then
     export SMARTAIR_AP_OPEN=1
   fi
   if [[ -n "${CLIENT_DEMO_URL:-}" ]]; then
