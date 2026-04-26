@@ -32,6 +32,11 @@ def _no_cache(res):
 _monitor: BME680Monitor | None = None
 _outputs: AirQualityIndicator | None = None
 
+# Optional: same /api/status sensor values for all viewers for N seconds (config).
+_status_cache_lock = threading.Lock()
+_status_cache_snap: dict[str, Any] | None = None
+_status_cache_at: float = 0.0
+
 
 def _get_monitor() -> BME680Monitor:
     assert _monitor is not None
@@ -141,6 +146,33 @@ def _live_poll_ms() -> int:
     return max(200, min(10_000, ms))
 
 
+def _status_snapshot_interval_sec() -> float:
+    """0 = every /api/status returns live sensor; >0 = hold one snapshot for this many seconds."""
+    s = load_config().get("server", {})
+    if not isinstance(s, dict):
+        return 0.0
+    v = float(s.get("status_snapshot_interval_seconds", 0.0))
+    return max(0.0, min(600.0, v))
+
+
+def _sensor_snapshot_for_status_api() -> dict[str, Any]:
+    """So all phones see the same score until the next window (config)."""
+    raw = _get_monitor().get_snapshot()
+    interval = _status_snapshot_interval_sec()
+    if interval <= 0.0:
+        return raw
+    now = time.monotonic()
+    with _status_cache_lock:
+        global _status_cache_snap, _status_cache_at
+        need_refresh = _status_cache_snap is None or (now - _status_cache_at) >= interval
+        was_missing_quality = not (_status_cache_snap or {}).get("quality")
+        now_has_quality = bool((raw or {}).get("quality"))
+        if need_refresh or (was_missing_quality and now_has_quality):
+            _status_cache_snap = dict(raw) if raw else {}
+            _status_cache_at = now
+        return dict(_status_cache_snap) if _status_cache_snap is not None else {}
+
+
 @app.route("/")
 def index() -> str:
     cfg = load_config()
@@ -153,7 +185,7 @@ def index() -> str:
 
 @app.get("/api/status")
 def api_status() -> Any:
-    snap = _get_monitor().get_snapshot()
+    snap = _sensor_snapshot_for_status_api()
     return jsonify(
         {
             "sensor": snap,

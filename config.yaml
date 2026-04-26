@@ -109,6 +109,10 @@ server:
   captive_portal: false
   # How often the browser refetches /api/status (ms). Lower = quicker graph/number updates.
   live_poll_ms: 1000
+  # If > 0, all devices get the *same* sensor block (incl. score) until this many seconds
+  # have passed, then the next request picks a new reading — keeps viewers aligned.
+  # Set to 0 to always show the live sensor (can differ by a second between phones).
+  status_snapshot_interval_seconds: 30
 
 # Set true only to test the web UI without a sensor (uses fake numbers on the site).
 # For your science project on the Pi, keep this false and do NOT set SENSORS_DRY_RUN=1.
