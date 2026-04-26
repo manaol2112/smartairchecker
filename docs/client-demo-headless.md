@@ -2,7 +2,7 @@
 
 Use this when the **Raspberry Pi is a Wi‑Fi client** to your **phone’s hotspot** (e.g. “Sophia Science Project”), not when the Pi is the access point (that flow is in `pi-wifi-hotspot.md` and `./setuphotspot`).
 
-**Android hotspot (common case):** the examples use **`192.168.43.x/24`**, gateway **`192.168.43.1`**, and **WPA2** — set **`CLIENT_DEMO_PSK`** to the password the phone shows for the hotspot. The defaults in `client-demo.env.example` match a typical **Android** tether. **iPhone** uses a different subnet (see below); this doc’s paths assume Android unless you change **`.client-demo.env`**.
+**Android hotspot (common case):** examples often use **`192.168.43.x/24`**, gateway **`192.168.43.1`**, and **WPA2** — set **`CLIENT_DEMO_PSK`** to the password the phone shows. **Many** Android builds use **`10.x.x.x` or other private ranges** instead of `192.168.43.x`; if a static from the file does not work, join on **DHCP** once, run **`./scripts/detect-client-demo-subnet.sh`**, then set **`CLIENT_DEMO_GW`**, **`CLIENT_DEMO_IPV4`**, and **`CLIENT_DEMO_DNS`**, or re-run **`sudo ./scripts/setup-client-wifi.sh`** (it **auto-aligns** the static IP to the live subnet after a successful connect when the values are wrong). **iPhone** uses a different subnet (see below). Change **`.client-demo.env`** to match *your* phone.
 
 Only leave **`CLIENT_DEMO_PSK`** empty if the network is **truly open** (no password), which is uncommon on phone hotspots.
 
@@ -10,18 +10,24 @@ Only leave **`CLIENT_DEMO_PSK`** empty if the network is **truly open** (no pass
 
 ## 1) Find the subnet your phone uses (once)
 
-With the **phone hotspot on** and the Pi **not** on static config yet, join the network using the desktop, or a temporary **DHCP** profile. Then on the Pi:
+With the **phone hotspot on** and the Pi on **DHCP** (or right after a fresh **`setup-client-wifi`** connect, before you rely on a manually wrong `.env`):
 
 ```bash
+./scripts/detect-client-demo-subnet.sh
+# or manually:
 ip -4 route | grep default
 ip -4 addr show dev wlan0
 ```
 
-- **Android** Personal Hotspot / Wi‑Fi hotspot: often gateway **`192.168.43.1`**, **`192.168.43.0/24`**. A static like **`192.168.43.100/24`** is a good first try (the repo defaults). Pick an address your phone is unlikely to assign to another device (e.g. high `.100`–`.150` is usually fine in `/24`).
+The detect script prints **`CLIENT_DEMO_GW`**, **`CLIENT_DEMO_DNS`**, and a suggested **`CLIENT_DEMO_IPV4`** in the *same* subnet (optional **`CLIENT_DEMO_HOST_LAST`** to pick a high last octet on `/24`).
 
-- **iPhone / iPad** (if you ever switch): almost always **`172.20.10.0/28`**, **not** `192.168.43.x`. See **`ip -4 a show`** after a DHCP join and adjust **`.client-demo.env`**.
+- **Android** Personal Hotspot: often **`192.168.43.1`** / **`192.168.43.0/24`**, but **many** phones use **`10.x.x.x`** (or other RFC1918). Do **not** keep **`192.168.43.x`** in **`.client-demo.env`** if `ip route` shows a `10.x` gateway — the Pi would be on the wrong subnet. **`setup-client-wifi.sh` auto-aligns** when it can read the real lease and your file does not match.
 
-**If the page does not load** from your phone, on the Pi run **`./scripts/verify-client-demo.sh`**. Common causes: **wrong static** (mismatch to what `ip route` actually shows on DHCP), static not applied (re-run **`sudo ./scripts/setup-client-wifi.sh`**, it cycles the link), **ufw** blocking the port, or the app not running.
+- **iPhone / iPad**: often **`172.20.10.0/28`**, not `192.168.43.x`. Use **`ip -4 a show`** after DHCP or the detect script.
+
+**If the subnet changes** every time you toggled the hotspot, a single fixed line in **`.client-demo.env`** can still be wrong the next day — in that case **re-run the detect script** or **regenerate the QR** from the current IP. **mDNS** (`.local`) is an alternative for some networks but not guaranteed on all phone tether implementations.
+
+**If the page does not load** from your phone, on the Pi run **`./scripts/verify-client-demo.sh`**. Common causes: **wrong static** (mismatch to what `ip route` shows on DHCP), static not applied (re-run **`sudo ./scripts/setup-client-wifi.sh`**, it cycles the link), **ufw** blocking the port, or the app not running.
 
 ## 2) Create `.client-demo.env`
 

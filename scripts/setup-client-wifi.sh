@@ -84,6 +84,54 @@ else
   fi
 fi
 
+# After join, the interface should have a DHCP lease on the *real* hotspot subnet (many
+# Android devices use 10.x.x.x, not 192.168.43.x). If .client-demo.env still has the
+# example 192.168.43.x, align gateway + static IP to this subnet so manual config works.
+echo "[setup-client-wifi] Waiting for address and default route on $IFACE…"
+sleep 4
+get_act_cidr() {
+  ip -4 -o addr show dev "$IFACE" scope global 2>/dev/null | awk 'NR==1{print $4}'
+}
+get_act_gw() {
+  local g
+  g=$(ip -4 route show default dev "$IFACE" 2>/dev/null | head -1 | awk '{for (i=1; i<NF; i++) if ($i == "via") { print $(i+1); exit }}')
+  if [[ -z "$g" ]]; then
+    g=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<NF; i++) if ($i == "via") { print $(i+1); exit }}')
+  fi
+  echo "${g:-}"
+}
+for _ in 1 2 3 4 5 6; do
+  ACT_CIDR=$(get_act_cidr)
+  ACT_GW=$(get_act_gw)
+  [[ -n "$ACT_CIDR" && -n "$ACT_GW" ]] && break
+  sleep 1
+done
+CLIENT_DEMO_DISABLE_AUTO_ALIGN="${CLIENT_DEMO_DISABLE_AUTO_ALIGN:-0}"
+PICKPY="$ROOT/scripts/pick-client-static.py"
+if [[ "$CLIENT_DEMO_DISABLE_AUTO_ALIGN" != "1" && -n "${ACT_CIDR:-}" && -n "${ACT_GW:-}" ]]; then
+  NEED_ALIGN=0
+  [[ "$CLIENT_DEMO_GW" != "$ACT_GW" ]] && NEED_ALIGN=1
+  if ! python3 -c "import ipaddress,sys; a=ipaddress.ip_interface(sys.argv[1]); b=ipaddress.ip_interface(sys.argv[2]); raise SystemExit(0 if b.ip in a.network else 1)" \
+      "$ACT_CIDR" "$CLIENT_DEMO_IPV4" 2>/dev/null; then
+    NEED_ALIGN=1
+  fi
+  if [[ "$NEED_ALIGN" -eq 1 ]]; then
+    if ! [[ -f "$PICKPY" ]]; then
+      echo "Missing $PICKPY; cannot auto-align. Run:  $ROOT/scripts/detect-client-demo-subnet.sh" >&2
+      exit 1
+    fi
+    echo "[setup-client-wifi] .client-demo.env does not match this hotspot (discovered $ACT_CIDR, gw $ACT_GW)."
+    echo "  Your env:  $CLIENT_DEMO_IPV4  gw $CLIENT_DEMO_GW"
+    echo "  → Auto-aligning so static IP matches the phone’s subnet. Update $ENV_FILE to match, or re-run:  $ROOT/scripts/detect-client-demo-subnet.sh"
+    NEWIP=$(ACT_CIDR="$ACT_CIDR" CLIENT_DEMO_HOST_LAST="${CLIENT_DEMO_HOST_LAST:-200}" python3 "$PICKPY" "$ACT_CIDR")
+    CLIENT_DEMO_GW="$ACT_GW"
+    CLIENT_DEMO_IPV4="$NEWIP"
+    CLIENT_DEMO_DNS="$ACT_GW"
+  fi
+elif [[ -z "${ACT_CIDR:-}" || -z "${ACT_GW:-}" ]]; then
+  echo "[setup-client-wifi] WARNING: no IPv4 or default route on $IFACE yet; applying your env as-is. If the page fails: join on DHCP, then  $ROOT/scripts/detect-client-demo-subnet.sh" >&2
+fi
+
 echo "[setup-client-wifi] Applying static IPv4 and autoconnect…"
 # Bind profile to this Wi‑Fi device (avoids a stale/ambiguous connection name)
 if [[ -n "$IFACE" ]]; then
@@ -134,7 +182,7 @@ else
   echo "  WARNING: $IFACE may not have the static address yet. Actual:"
   ip -4 addr show dev "$IFACE" 2>/dev/null | sed 's/^/    /' || true
   echo "  Run:  nmcli -f IP4.ADDRESS,IP4.GATEWAY,IP4.METHOD,IP4.ROUTE c show \"$CLIENT_DEMO_CONN_NAME\""
-  echo "  Android: expect 192.168.43.x/24. iPhone: usually 172.20.10.x/28. Compare to: ip -4 a show $IFACE  and  docs/client-demo-headless.md"
+  echo "  Not all Android hotspots are 192.168.43.x (often 10.x). Compare:  ip -4 a show $IFACE  and  $ROOT/scripts/detect-client-demo-subnet.sh  —  docs/client-demo-headless.md"
 fi
 echo "  Test:  ping -c1 $CLIENT_DEMO_GW  |  from phone:  http://$(echo "$CLIENT_DEMO_IPV4" | cut -d/ -f1):${SMARTAIR_PORT}/"
 echo "  Diagnose:  $ROOT/scripts/verify-client-demo.sh"

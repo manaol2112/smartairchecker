@@ -56,7 +56,7 @@ else
 fi
 echo ""
 echo "=== Hints ==="
-echo "  • Wrong static (Android is usually 192.168.43.x; iPhone is 172.20.10.x) — check ip output vs .client-demo.env, re-run setup-client-wifi.sh"
+echo "  • Wrong static — Android may be 10.x, 192.168.43.x, etc.; run:  $ROOT/scripts/detect-client-demo-subnet.sh  (iPhone: often 172.20.10.x) — match .client-demo.env, re-run setup-client-wifi.sh"
 echo "  • Re-run:  sudo $ROOT/scripts/setup-client-wifi.sh (applies down/up so static IP sticks)"
 echo "  • After editing env:  $ROOT/docs/client-demo-headless.md"
 echo ""
