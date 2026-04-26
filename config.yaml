@@ -107,12 +107,11 @@ server:
   # When true, common OS “connectivity check” paths redirect to your dashboard
   # (use with ./setuphotspot and HOTSPOT_CAPTIVE=1 — see docs/pi-wifi-hotspot.md)
   captive_portal: false
-  # How often the browser refetches /api/status (ms). Lower = quicker graph/number updates.
-  live_poll_ms: 1000
-  # If > 0, all devices get the *same* sensor block (incl. score) until this many seconds
-  # have passed, then the next request picks a new reading — keeps viewers aligned.
-  # Set to 0 to always show the live sensor (can differ by a second between phones).
-  status_snapshot_interval_seconds: 30
+  # How often the browser refetches /api/status (ms). 30000 = every 30s; same for all devices.
+  live_poll_ms: 30000
+  # If > 0, the Pi serves one shared sensor snapshot to every viewer until the next update
+  # (seconds). Pairs with live_poll_ms so all phones see the same score/quality in that window.
+  public_sensor_refresh_seconds: 30
 
 # Set true only to test the web UI without a sensor (uses fake numbers on the site).
 # For your science project on the Pi, keep this false and do NOT set SENSORS_DRY_RUN=1.

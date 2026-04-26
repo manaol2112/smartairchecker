@@ -32,10 +32,10 @@ def _no_cache(res):
 _monitor: BME680Monitor | None = None
 _outputs: AirQualityIndicator | None = None
 
-# Optional: same /api/status sensor values for all viewers for N seconds (config).
-_status_cache_lock = threading.Lock()
-_status_cache_snap: dict[str, Any] | None = None
-_status_cache_at: float = 0.0
+# Optional: all UI clients see the same score/gas/quality for public_sensor_refresh_seconds
+_public_sensor_latch: dict[str, Any] | None = None
+_public_sensor_latch_mono: float = 0.0
+_public_sensor_latch_lock = threading.Lock()
 
 
 def _get_monitor() -> BME680Monitor:
@@ -143,34 +143,35 @@ def _live_poll_ms() -> int:
     if not isinstance(s, dict):
         return 1000
     ms = int(s.get("live_poll_ms", 1000))
-    return max(200, min(10_000, ms))
+    return max(200, min(60_000, ms))
 
 
-def _status_snapshot_interval_sec() -> float:
-    """0 = every /api/status returns live sensor; >0 = hold one snapshot for this many seconds."""
-    s = load_config().get("server", {})
-    if not isinstance(s, dict):
-        return 0.0
-    v = float(s.get("status_snapshot_interval_seconds", 0.0))
-    return max(0.0, min(600.0, v))
-
-
-def _sensor_snapshot_for_status_api() -> dict[str, Any]:
-    """So all phones see the same score until the next window (config)."""
-    raw = _get_monitor().get_snapshot()
-    interval = _status_snapshot_interval_sec()
-    if interval <= 0.0:
+def _public_sensor_for_display(raw: dict[str, Any]) -> dict[str, Any]:
+    """
+    If server.public_sensor_refresh_seconds > 0, return a latched copy of the sensor
+    dict so every browser sees the same score/quality until the next interval
+    (Pi wall clock, monotonic-based). 0 = pass through the live sample every request.
+    """
+    if not raw:
         return raw
+    cfg = load_config().get("server", {})
+    if not isinstance(cfg, dict):
+        return raw
+    try:
+        hold = float(cfg.get("public_sensor_refresh_seconds", 0) or 0)
+    except (TypeError, ValueError):
+        hold = 0.0
+    if hold <= 0:
+        return raw
+    global _public_sensor_latch, _public_sensor_latch_mono
     now = time.monotonic()
-    with _status_cache_lock:
-        global _status_cache_snap, _status_cache_at
-        need_refresh = _status_cache_snap is None or (now - _status_cache_at) >= interval
-        was_missing_quality = not (_status_cache_snap or {}).get("quality")
-        now_has_quality = bool((raw or {}).get("quality"))
-        if need_refresh or (was_missing_quality and now_has_quality):
-            _status_cache_snap = dict(raw) if raw else {}
-            _status_cache_at = now
-        return dict(_status_cache_snap) if _status_cache_snap is not None else {}
+    with _public_sensor_latch_lock:
+        if _public_sensor_latch is None or (now - _public_sensor_latch_mono) >= hold:
+            out = dict(raw)
+            out["ts"] = time.time()
+            _public_sensor_latch = out
+            _public_sensor_latch_mono = now
+        return dict(_public_sensor_latch)
 
 
 @app.route("/")
@@ -185,7 +186,7 @@ def index() -> str:
 
 @app.get("/api/status")
 def api_status() -> Any:
-    snap = _sensor_snapshot_for_status_api()
+    snap = _public_sensor_for_display(_get_monitor().get_snapshot())
     return jsonify(
         {
             "sensor": snap,
