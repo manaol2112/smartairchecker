@@ -2551,6 +2551,11 @@
             sub.textContent =
               "Temperature, wetness in the air, pressure, and the gas “sniff” all come from the real world, not made-up math.";
           }
+          const syncInt = Number(st.display_sync_interval_seconds) || 0;
+          if (syncInt > 0) {
+            sub.textContent +=
+              " All viewers get the same numbers; they move about every " + syncInt + "s together.";
+          }
         }
         box.setAttribute("aria-label", live ? "Data source: real air from the box" : "Data source: pretend mode, not the real box");
       }

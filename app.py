@@ -31,11 +31,9 @@ def _no_cache(res):
     return res
 _monitor: BME680Monitor | None = None
 _outputs: AirQualityIndicator | None = None
-
-# Optional: all UI clients see the same score/gas/quality for public_sensor_refresh_seconds
-_public_sensor_latch: dict[str, Any] | None = None
-_public_sensor_latch_mono: float = 0.0
-_public_sensor_latch_lock = threading.Lock()
+_display_sync_lock = threading.Lock()
+_display_sync_bucket: int | None = None
+_display_sync_sensor: dict[str, Any] | None = None
 
 
 def _get_monitor() -> BME680Monitor:
@@ -143,35 +141,34 @@ def _live_poll_ms() -> int:
     if not isinstance(s, dict):
         return 1000
     ms = int(s.get("live_poll_ms", 1000))
-    return max(200, min(60_000, ms))
+    return max(200, min(10_000, ms))
 
 
-def _public_sensor_for_display(raw: dict[str, Any]) -> dict[str, Any]:
-    """
-    If server.public_sensor_refresh_seconds > 0, return a latched copy of the sensor
-    dict so every browser sees the same score/quality until the next interval
-    (Pi wall clock, monotonic-based). 0 = pass through the live sample every request.
-    """
-    if not raw:
-        return raw
-    cfg = load_config().get("server", {})
-    if not isinstance(cfg, dict):
-        return raw
-    try:
-        hold = float(cfg.get("public_sensor_refresh_seconds", 0) or 0)
-    except (TypeError, ValueError):
-        hold = 0.0
-    if hold <= 0:
-        return raw
-    global _public_sensor_latch, _public_sensor_latch_mono
-    now = time.monotonic()
-    with _public_sensor_latch_lock:
-        if _public_sensor_latch is None or (now - _public_sensor_latch_mono) >= hold:
-            out = dict(raw)
-            out["ts"] = time.time()
-            _public_sensor_latch = out
-            _public_sensor_latch_mono = now
-        return dict(_public_sensor_latch)
+def _display_sync_interval_sec() -> int:
+    s = load_config().get("server", {})
+    if not isinstance(s, dict):
+        return 0
+    v = s.get("display_sync_interval_seconds", 0)
+    return max(0, int(v))
+
+
+def _display_sensor_for_api(live: dict[str, Any]) -> dict[str, Any]:
+    """When display_sync_interval_seconds > 0, return one frozen snapshot per time bucket
+    (same JSON for all phones until the next bucket)."""
+    interval = _display_sync_interval_sec()
+    if interval == 0 or not live:
+        return live
+    global _display_sync_bucket, _display_sync_sensor
+    b = int(time.time() // interval)
+    with _display_sync_lock:
+        if b != _display_sync_bucket or _display_sync_sensor is None:
+            _display_sync_bucket = b
+            _display_sync_sensor = live.copy() if live else {}
+        else:
+            # Warming: first read in a bucket can still be empty; promote when live is ready
+            if live.get("quality") and not _display_sync_sensor.get("quality"):
+                _display_sync_sensor = live.copy() if live else {}
+        return dict(_display_sync_sensor)
 
 
 @app.route("/")
@@ -186,13 +183,15 @@ def index() -> str:
 
 @app.get("/api/status")
 def api_status() -> Any:
-    snap = _public_sensor_for_display(_get_monitor().get_snapshot())
+    live = _get_monitor().get_snapshot()
+    interval = _display_sync_interval_sec()
     return jsonify(
         {
-            "sensor": snap,
+            "sensor": _display_sensor_for_api(live) if live else live,
             "room": state.get_current_room(),
             "rooms": load_config().get("rooms", []),
             "live_poll_ms": _live_poll_ms(),
+            "display_sync_interval_seconds": interval,
             # "live" only when a real BME680 is in use; otherwise pretend numbers for the UI
             "data_source": "simulated"
             if _get_monitor().uses_synthetic()
