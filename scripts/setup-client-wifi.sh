@@ -64,7 +64,7 @@ nmcli con delete "$CLIENT_DEMO_CONN_NAME" 2>/dev/null || true
 # Open network: key-mgmt none
 if [[ ${#IFACE_FLAG[@]} -gt 0 ]]; then
   nmcli connection add type wifi con-name "$CLIENT_DEMO_CONN_NAME" "${IFACE_FLAG[@]}" \
-    autoconnect yes autoconnect-priority 50 \
+    connection.autoconnect yes connection.autoconnect-priority 50 \
     ssid "$CLIENT_DEMO_SSID" \
     802-11-wireless.mode infrastructure \
     802-11-wireless-security.key-mgmt none \
@@ -76,7 +76,7 @@ if [[ ${#IFACE_FLAG[@]} -gt 0 ]]; then
     ipv4.route-metric 200
 else
   nmcli connection add type wifi con-name "$CLIENT_DEMO_CONN_NAME" \
-    autoconnect yes autoconnect-priority 50 \
+    connection.autoconnect yes connection.autoconnect-priority 50 \
     ssid "$CLIENT_DEMO_SSID" \
     802-11-wireless.mode infrastructure \
     802-11-wireless-security.key-mgmt none \
