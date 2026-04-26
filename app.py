@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import threading
 import time
 from pathlib import Path
@@ -73,7 +74,7 @@ def _logging_loop() -> None:
                 quality=str(snap.get("quality", "")),
                 score=int(snap.get("score", 0)),
             )
-        except OSError as e:
+        except (OSError, sqlite3.OperationalError) as e:
             app.logger.error("data insert failed: %s", e)
         time.sleep(_data_log_interval_sec())
 

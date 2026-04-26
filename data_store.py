@@ -19,6 +19,18 @@ def _db_path() -> str:
     return str(root / p) if not os.path.isabs(p) else p
 
 
+# Wait this long (seconds) if another connection holds a lock. WAL + busy_timeout
+# also reduce "database is locked" from the background logger + Flask on the same file.
+_DB_WAIT_SEC = 30.0
+
+
+def _connect() -> sqlite3.Connection:
+    c = sqlite3.connect(_db_path(), timeout=_DB_WAIT_SEC)
+    c.execute("PRAGMA foreign_keys = ON")
+    c.execute("PRAGMA busy_timeout = 30000")
+    return c
+
+
 def _csv_path() -> str:
     p = load_config().get("data", {}).get("csv_path", "data/readings_log.csv")
     root = Path(__file__).resolve().parent
@@ -36,7 +48,7 @@ def _ensure_db() -> None:
             return
         Path(_db_path()).parent.mkdir(parents=True, exist_ok=True)
         Path(_csv_path()).parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(_db_path())
+        conn = _connect()
         try:
             conn.execute(
                 """
@@ -63,6 +75,7 @@ def _ensure_db() -> None:
                 )
                 """
             )
+            conn.execute("PRAGMA journal_mode = WAL")
             conn.commit()
         finally:
             conn.close()
@@ -80,46 +93,69 @@ def insert_reading(
 ) -> None:
     _ensure_db()
     ts = time.time()
-    conn = sqlite3.connect(_db_path())
-    try:
-        conn.execute(
-            """
-            INSERT INTO reading
-            (ts, room, temperature_c, humidity_percent, pressure_hpa, gas_ohms, quality, score)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (ts, room, temperature_c, humidity_percent, pressure_hpa, gas_ohms, quality, score),
-        )
-        row = conn.execute(
-            "SELECT sample_count, sum_score FROM room_summary WHERE room = ?", (room,)
-        ).fetchone()
-        if row:
-            c, s = int(row[0]), float(row[1])
+    for attempt in range(4):
+        if attempt:
+            time.sleep(0.05 * (2 ** (attempt - 1)))
+        conn: sqlite3.Connection | None = None
+        try:
+            conn = _connect()
             conn.execute(
-                "UPDATE room_summary SET sample_count = ?, sum_score = ?, last_ts = ? WHERE room = ?",
-                (c + 1, s + score, ts, room),
+                """
+                INSERT INTO reading
+                (ts, room, temperature_c, humidity_percent, pressure_hpa, gas_ohms, quality, score)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (ts, room, temperature_c, humidity_percent, pressure_hpa, gas_ohms, quality, score),
             )
+            row = conn.execute(
+                "SELECT sample_count, sum_score FROM room_summary WHERE room = ?", (room,)
+            ).fetchone()
+            if row:
+                c, s = int(row[0]), float(row[1])
+                conn.execute(
+                    "UPDATE room_summary SET sample_count = ?, sum_score = ?, last_ts = ? WHERE room = ?",
+                    (c + 1, s + score, ts, room),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO room_summary (room, sample_count, sum_score, last_ts) VALUES (?, 1, ?, ?)",
+                    (room, float(score), ts),
+                )
+            conn.commit()
+        except sqlite3.OperationalError as e:
+            if conn:
+                try:
+                    conn.rollback()
+                except sqlite3.Error:
+                    pass
+            if conn:
+                try:
+                    conn.close()
+                except sqlite3.Error:
+                    pass
+            msg = str(e).lower()
+            if attempt < 3 and any(w in msg for w in ("locked", "busy", "timeout")):
+                continue
+            raise
         else:
-            conn.execute(
-                "INSERT INTO room_summary (room, sample_count, sum_score, last_ts) VALUES (?, 1, ?, ?)",
-                (room, float(score), ts),
+            if conn:
+                try:
+                    conn.close()
+                except sqlite3.Error:
+                    pass
+            _append_csv(
+                {
+                    "ts": ts,
+                    "room": room,
+                    "temperature_c": temperature_c,
+                    "humidity_percent": humidity_percent,
+                    "pressure_hpa": pressure_hpa,
+                    "gas_ohms": gas_ohms,
+                    "quality": quality,
+                    "score": score,
+                }
             )
-        conn.commit()
-    finally:
-        conn.close()
-
-    _append_csv(
-        {
-            "ts": ts,
-            "room": room,
-            "temperature_c": temperature_c,
-            "humidity_percent": humidity_percent,
-            "pressure_hpa": pressure_hpa,
-            "gas_ohms": gas_ohms,
-            "quality": quality,
-            "score": score,
-        }
-    )
+            return
 
 
 def _append_csv(row: dict[str, Any]) -> None:
@@ -151,7 +187,7 @@ def _local_date_iso(ts: float) -> str:
 def get_distinct_reading_dates() -> list[str]:
     """All calendar days (local Pi clock) that have at least one stored reading, newest first."""
     _ensure_db()
-    conn = sqlite3.connect(_db_path())
+    conn = _connect()
     try:
         cur = conn.execute("SELECT ts FROM reading")
         days: set[str] = set()
@@ -179,7 +215,7 @@ def get_room_time_period_chart(filter_date: str | None) -> dict[str, Any]:
     sum_score: dict[tuple[str, str], float] = defaultdict(float)
     count: dict[tuple[str, str], int] = defaultdict(int)
 
-    conn = sqlite3.connect(_db_path())
+    conn = _connect()
     try:
         cur = conn.execute("SELECT ts, room, score FROM reading")
         for ts, room, sc in cur.fetchall():

@@ -92,6 +92,7 @@ buzzer:
 
 # Data files (local on the Pi — SQLite for charts; CSV is a second copy of each point)
 data:
+  # DB uses WAL + busy timeout in code (logger thread + /api/ charts share the file).
   sqlite_path: "data/readings.db"
   csv_path: "data/readings_log.csv"
   # How often to save one row (all sensor fields + room + time). 1800 = 30 minutes.
