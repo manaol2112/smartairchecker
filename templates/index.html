@@ -2562,13 +2562,33 @@
           second: "2-digit",
         });
       }
+      // Chart is heavy on the Pi (SQLite). Never block the live banner/numbers on it.
+      async function fetchChartAndUpdate(chartUrl) {
+        try {
+          const b = await fetch(chartUrl, { cache: "no-store" });
+          if (!b.ok) {
+            console.error("room_time_chart HTTP", b.status);
+            return;
+          }
+          const chartPayload = await b.json();
+          if (chartPayload && chartPayload.error) {
+            console.error(chartPayload.error);
+            return;
+          }
+          if (chartPayload.available_dates) syncDateDropdown(chartPayload.available_dates);
+          updateTimeChart(chartPayload);
+        } catch (e) {
+          console.error(e);
+        }
+      }
       async function tick() {
         try {
           const chartUrl = "/api/room_time_chart?date=" + encodeURIComponent(selectedChartDate);
-          const [a, b] = await Promise.all([fetch("/api/status"), fetch(chartUrl)]);
+          // IMPORTANT: do not Promise.all with the chart. Until both fetch() promises settled,
+          // we never ran a.json() — a slow/hung /api/room_time_chart left “Checking data source…” forever.
+          const a = await fetch("/api/status", { cache: "no-store" });
+          if (!a.ok) throw new Error("/api/status " + a.status);
           const st = await a.json();
-          // Apply status and live numbers *before* parsing the chart — on the Pi, chart JSON
-          // can be slow (large SQLite reads). Do not keep “Checking data source…” on error.
           setSensorSourceIndicator(st);
           const s = st.sensor || {};
           const warm = el("gasWarmHint");
@@ -2603,15 +2623,15 @@
           }
           if (st.room) roomSelect.value = st.room;
 
-          const chartPayload = await b.json();
-          if (chartPayload && chartPayload.error) {
-            console.error(chartPayload.error);
-            return;
-          }
-          if (chartPayload.available_dates) syncDateDropdown(chartPayload.available_dates);
-          updateTimeChart(chartPayload);
+          void fetchChartAndUpdate(chartUrl);
         } catch (e) {
           console.error(e);
+          const title = el("sensorSourceTitle");
+          const sub = el("sensorSourceSub");
+          if (title && /Checking data source/.test(String(title.textContent || ""))) {
+            title.textContent = "Can’t load status from the Pi";
+            if (sub) sub.textContent = "Check Wi‑Fi, refresh the page, and make sure the app is running on the box.";
+          }
         }
       }
       roomSelect.addEventListener("change", async () => {
