@@ -1,5 +1,30 @@
 # Raspberry Pi: run on power-on + open the dashboard in a browser
 
+You need **Raspberry Pi OS with desktop** (not **Lite** — there is no local browser on Lite).
+
+## Quick checklist (demo on a monitor)
+
+1. **Flask app on every boot** (systemd):  
+   `sudo ./scripts/install-smartair-service.sh`  
+   then `sudo systemctl enable --now smartair-web`  
+   (or use `./setupclientdemo` if you use the client Wi‑Fi flow).
+
+2. **Browser:**  
+   `sudo apt update && sudo apt install -y chromium`
+
+3. **Autostart kiosk** (opens the app in fullscreen after login):  
+   `cd /path/to/smartairchecker && sudo ./scripts/install-smartair-kiosk.sh`
+
+4. **Auto-login** so the desktop (and autostart) runs without typing a password:  
+   `sudo raspi-config` → **System Options** → **Auto Login** (or **Boot / Auto Login**), choose **Desktop Autologin**, finish, reboot.  
+   On some images: **Raspberry Pi Configuration** app → **System** tab → **Auto login**
+
+5. **Reboot** and confirm: the Pi should show Chromium (kiosk) on `http://127.0.0.1:5001/` once the app is responding.
+
+`kiosk-launch.sh` **waits** until the Flask server answers before opening the browser, so you are not stuck on an error page during startup.
+
+---
+
 ## 1. App on boot (`./run`)
 
 Use the same flow as the headless client demo.
