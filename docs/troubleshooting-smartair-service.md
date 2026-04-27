@@ -1,5 +1,32 @@
 # `smartair-web.service` failed to start
 
+## 0) Journal says **Failed with result 'exit-code'**
+
+That means the **main process** (usually `python3 …/run.py`) **exited with a non-zero status** — almost always a **Python error** (missing package, bad `config.yaml`, I2C permission, **port 5001 already in use**, etc.).
+
+1. **Show the real message** (scroll up a few lines for a **Traceback**):
+
+   ```bash
+   sudo journalctl -u smartair-web -b -n 100 --no-pager
+   ```
+
+   Grep for errors:
+
+   ```bash
+   sudo journalctl -u smartair-web -b --no-pager | grep -E 'Error|error|Traceback|Exception|No such file|Address already|Permission'
+   ```
+
+2. **Re-run the app in a terminal** (same as systemd, so you see the error immediately):
+
+   ```bash
+   cd /path/to/smartairchecker
+   ./scripts/diagnose-smartair.sh
+   ```
+
+   (Run as the **same user** the service uses — e.g. `raspberry` / `pi` — not `root`. If the service runs as `pi`: `sudo -u pi -H ./scripts/diagnose-smartair.sh` from the project directory.)
+
+3. **Typical fixes** after you read the error: section **2** (venv), **4** (port in use: `ss -tlnp | grep 5001`), and **1** in this file (full journal).
+
 ## 0.5) `systemctl is-active` shows **activating** (never **active**)
 
 That usually means the **start job** has not finished. Common cause: an old unit used **`After=network-online.target`**, and your Pi never reaches “network online” (WiFi still connecting, no DHCP, wrong SSID) — the service can sit **activating** for a long time.
