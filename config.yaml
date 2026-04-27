@@ -13,11 +13,13 @@ gpio:
   common_anode: false
 
 # Air quality: BME680 gas resistance (Ω) is higher when the air is “cleaner”
-# (after the recommended ~48h burn-in). Adjust after calibration in your home.
-# Score: linear map — below scale_min_ohms = score 0, at/above scale_max_ohms = 100.
-# If the score is stuck (often at 100), your real readings may sit in a narrow range:
-# set scale_max_ohms *above* the kΩ (×1000) you see on the “clean” / purifier-on runs,
-# and scale_min_ohms near a “stuffy” or polluted value so the bar has room to move.
+# (after the recommended ~48h burn-in). With use_relative_score: true, the 0–100
+# number is: score ≈ 100 * (gas_ohms - scale_min_ohms) / (scale_max_ohms - scale_min_ohms).
+# Example: 75 kΩ (75000) with min=10k max=200k → 100*65/190 ≈ 34  ← looks “stuck in the
+# 30s” even in good air, because 75k is only ~1/3 of the way to 200k. The logic is
+# working; the *span* is too wide. Fix: set scale_max_ohms to ~1.0–1.1× the best Ω
+# you see on the readout (kΩ × 1000) with the purifier on, and scale_min_ohms near
+# a stuffy or typical “bad” reading so 0–100 matches your room.
 air_quality:
   # Minimum gas ohm to consider “readings stable”
   min_gas_ohms: 1000
@@ -27,7 +29,8 @@ air_quality:
   good_min: 20000
   moderate_min: 10000
   use_relative_score: true
-  # 0-100 gas score: span (higher ohm = cleaner; tune to your room’s typical range)
+  # 0-100 gas score: span (higher ohm = cleaner). Defaults are wide; many installs
+  # need scale_max_ohms lowered (e.g. 80_000–120_000) or the score never reaches ~100.
   scale_min_ohms: 10000
   scale_max_ohms: 200000
   # If score is in [score_label_moderate_min, score_label_good_min) → “moderate”; if >= good →
