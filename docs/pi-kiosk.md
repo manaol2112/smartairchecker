@@ -36,7 +36,7 @@ cd /path/to/smartairchecker
 
 (Or only the service: `sudo ./scripts/install-smartair-service.sh`.)
 
-- **`smartair-web.service`** runs **`./run`**, starting after the network target (about **2 s** after boot, then the process starts; the BME680 begins measuring with its normal loop).  
+- **`smartair-web.service`** runs **`./run`** on boot (ordered after **local filesystem** only, so WiFi is not required for the app to start). The BME680 loop runs in the process as soon as it starts.  
 - **Start now:** `sudo systemctl start smartair-web`  
 - **Status:** `systemctl status smartair-web`  
 - **Logs:** `journalctl -u smartair-web -f`  

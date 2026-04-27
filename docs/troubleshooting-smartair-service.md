@@ -27,13 +27,40 @@ That means the **main process** (usually `python3 …/run.py`) **exited with a n
 
 3. **Typical fixes** after you read the error: section **2** (venv), **4** (port in use: `ss -tlnp | grep 5001`), and **1** in this file (full journal).
 
-## 0.5) `systemctl is-active` shows **activating** (never **active**)
+## 0.5) Stuck in **activating** (never becomes **active**)
 
-That usually means the **start job** has not finished. Common cause: an old unit used **`After=network-online.target`**, and your Pi never reaches “network online” (WiFi still connecting, no DHCP, wrong SSID) — the service can sit **activating** for a long time.
+The start job is **still running or waiting** — often on **ordering** (another target not reached yet) or a **hung** `ExecStart` (very rare for Python).
 
-**Fix:** `git pull` and re-run `sudo ./scripts/install-smartair-service.sh` (the default unit now uses **`After=network.target` only**), then `sudo systemctl daemon-reload && sudo systemctl restart smartair-web`.
+1. **Install the current unit** (local disk only, **no** `network-online` or `network.target` wait):
 
-If it is still **not** `active` after 10 s, run `sudo systemctl status smartair-web` and `sudo journalctl -u smartair-web -n 40 --no-pager` and look for a **crash loop** (Python error each restart).
+   ```bash
+   cd /path/to/smartairchecker
+   git pull
+   sudo ./scripts/install-smartair-service.sh
+   sudo systemctl daemon-reload
+   sudo systemctl reset-failed smartair-web
+   sudo systemctl start smartair-web
+   ```
+
+2. **Confirm the file on disk** (must show **`After=local-fs.target`**, not `network-online`):
+
+   ```bash
+   grep -E '^(After=|Wants=|ExecStart=)' /etc/systemd/system/smartair-web.service
+   ```
+
+3. **See if another job is blocking:**
+
+   ```bash
+   sudo systemctl list-jobs
+   ```
+
+4. **See what the unit is ordered after:**
+
+   ```bash
+   systemctl list-dependencies smartair-web.service
+   ```
+
+5. If it still never turns **active** within a few seconds, it may be a **Python crash / restart** that looks like flapping: run `sudo journalctl -u smartair-web -b -n 80` and `cd ... && ./scripts/diagnose-smartair.sh` (same user as the service).
 
 ## 0) Journal shows `ExecStartPre=/bin/sleep` and “activating / exit”
 
@@ -109,6 +136,6 @@ ss -tlnp | grep 5001
 sudo lsof -i :5001
 ```
 
-## 6. Network wait (unusual)
+## 6. Network (not required for the service)
 
-The unit uses `After=network-online.target`. A broken network configuration should not block forever, but if boot hangs, ask on your OS forums. You can test without waiting by temporarily editing the service (advanced) or by running `./run` manually.
+The installed unit uses **`After=local-fs.target` only** — the app does **not** wait for WiFi or `network-online`. If you still have an old unit with `network-online`, re-run `sudo ./scripts/install-smartair-service.sh` and `sudo systemctl daemon-reload` (see section 0.5).
