@@ -82,7 +82,8 @@ cat >>"$DEST" <<EOF
 ExecStart=$RUN_ABS
 Restart=on-failure
 RestartSec=20
-ExecStartPre=/bin/sleep 5
+# Short delay so I2C/GPIO are ready; increase if the service fails on cold boot.
+ExecStartPre=/bin/sleep 2
 [Install]
 WantedBy=multi-user.target
 EOF

@@ -51,6 +51,8 @@ From the project root:
 
 5. On your laptop/phone, open **`http://<STATIC_IP>:5001/`** (or your `config.yaml` `server.port`).
 
+**Pi with a monitor (desktop OS):** to open the same page in a fullscreen browser when the Pi logs in, run **`sudo ./scripts/install-smartair-kiosk.sh`** (see **`docs/pi-kiosk.md`**). OS Lite has no local browser — use another device.
+
 ## 3) Static URL for the QR
 
 Default app port is **5001** (see `config.yaml`). Your URL is:

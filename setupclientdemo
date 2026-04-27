@@ -45,5 +45,6 @@ sudo env CLIENT_DEMO_ENV="$ENVF" "$ROOT/scripts/install-smartair-service.sh" "$E
 echo ""
 echo "Start the app now:  sudo systemctl start smartair-web"
 echo "Generate URL QR:   AP_IP=… SMARTAIR_PORT=5001 ./scripts/generate-demo-qrs.sh  (or set CLIENT_DEMO_IPV4; see docs)"
+echo "Kiosk (Pi + monitor): sudo ./scripts/install-smartair-kiosk.sh   →  docs/pi-kiosk.md"
 echo "Full help:         docs/client-demo-headless.md"
 exit 0
