@@ -1,5 +1,13 @@
 # `smartair-web.service` failed to start
 
+## 0.5) `systemctl is-active` shows **activating** (never **active**)
+
+That usually means the **start job** has not finished. Common cause: an old unit used **`After=network-online.target`**, and your Pi never reaches “network online” (WiFi still connecting, no DHCP, wrong SSID) — the service can sit **activating** for a long time.
+
+**Fix:** `git pull` and re-run `sudo ./scripts/install-smartair-service.sh` (the default unit now uses **`After=network.target` only**), then `sudo systemctl daemon-reload && sudo systemctl restart smartair-web`.
+
+If it is still **not** `active` after 10 s, run `sudo systemctl status smartair-web` and `sudo journalctl -u smartair-web -n 40 --no-pager` and look for a **crash loop** (Python error each restart).
+
 ## 0) Journal shows `ExecStartPre=/bin/sleep` and “activating / exit”
 
 **That is normal** if you still have an old unit with a **sleep** in it: the sleep process exits in a few seconds with **status 0**. That is **not** the failure. The part that **crashes** is almost always the **`python3` / `run.py` line a moment later** — scroll down in the log or use:
