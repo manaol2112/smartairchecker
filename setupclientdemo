@@ -37,6 +37,14 @@ if [[ $(id -u) -eq 0 ]]; then
   exit 1
 fi
 
+if [[ ! -x "$ROOT/.venv/bin/python3" ]]; then
+  echo "[setupclientdemo] Creating Python .venv (needed for smartair-web on boot)…"
+  "$ROOT/pi-bootstrap.sh" || {
+    echo "pi-bootstrap.sh failed. Fix the errors, then:  $0" >&2
+    exit 1
+  }
+fi
+
 echo "[setupclientdemo] Wi‑Fi profile (sudo)…"
 sudo env CLIENT_DEMO_ENV="$ENVF" "$ROOT/scripts/setup-client-wifi.sh" "$ENVF"
 echo ""

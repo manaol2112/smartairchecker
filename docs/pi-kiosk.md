@@ -14,7 +14,8 @@ cd /path/to/smartairchecker
 - **`smartair-web.service`** runs **`./run`**, starting after the network target (about **2 s** after boot, then the process starts; the BME680 begins measuring with its normal loop).  
 - **Start now:** `sudo systemctl start smartair-web`  
 - **Status:** `systemctl status smartair-web`  
-- **Logs:** `journalctl -u smartair-web -f`
+- **Logs:** `journalctl -u smartair-web -f`  
+- If the job fails, see **`docs/troubleshooting-smartair-service.md`**
 
 Raspberry Pi **OS Lite** (no desktop): the web UI is only reachable from other devices; there is no local browser. Use a phone, laptop, or QR.
 
