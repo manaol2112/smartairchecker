@@ -1,5 +1,23 @@
 # `smartair-web.service` failed to start
 
+## 0) Journal shows `ExecStartPre=/bin/sleep` and “activating / exit”
+
+**That is normal** if you still have an old unit with a **sleep** in it: the sleep process exits in a few seconds with **status 0**. That is **not** the failure. The part that **crashes** is almost always the **`python3` / `run.py` line a moment later** — scroll down in the log or use:
+
+```bash
+sudo journalctl -u smartair-web -b -e --no-pager
+```
+
+Look for a **Python traceback** or `ModuleNotFoundError`, `Permission denied`, or `Address already in use`.
+
+**If the service is stuck “activating”** or you see *start request repeated too quickly*:
+
+```bash
+sudo systemctl reset-failed smartair-web
+```
+
+Then pull the latest `install-smartair-service.sh` (sleep was removed) and: `sudo ./scripts/install-smartair-service.sh && sudo systemctl daemon-reload && sudo systemctl restart smartair-web`.
+
 ## 1. See the real error (always do this on the Pi)
 
 ```bash

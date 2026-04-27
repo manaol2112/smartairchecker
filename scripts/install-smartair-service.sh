@@ -90,12 +90,12 @@ EOF
 if [[ -n "$SUPP" ]]; then
   echo "SupplementaryGroups=$SUPP" >>"$DEST"
 fi
+# ExecStart = venv + absolute run.py; WorkingDirectory=ROOT. No ExecStartPre (sleep looked
+# like a failure in journalctl, but the real error is the Python line below in logs).
 cat >>"$DEST" <<EOF
 ExecStart=$VPY $ROOT/run.py
 Restart=on-failure
 RestartSec=20
-# Short delay so I2C/GPIO are ready; increase if the service fails on cold boot.
-ExecStartPre=/bin/sleep 2
 [Install]
 WantedBy=multi-user.target
 EOF
