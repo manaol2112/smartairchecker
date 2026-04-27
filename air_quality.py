@@ -21,7 +21,7 @@ def evaluate_air_quality(
     baseline_ohms: float,
     use_relative_score: bool,
     scale_min_ohms: float = 10_000.0,
-    scale_max_ohms: float = 200_000.0,
+    scale_max_ohms: float = 100_000.0,
     score_label_good_min: int = 67,
     score_label_moderate_min: int = 34,
 ) -> AirQualityResult:
@@ -36,9 +36,8 @@ def evaluate_air_quality(
     label_from_score = False
     if use_relative_score and scale_max_ohms > scale_min_ohms:
         # Linear map: higher gas (Ω) = cleaner. score 0 at scale_min, 100 at scale_max.
-        # Real BME680 gas often sits ~30–150 kΩ indoors; 200 kΩ max in config is an
-        # *upper* bound — if the purifier only reaches ~70–90 kΩ, the raw score stays
-        # ~30–45 until you lower scale_max_ohms to ~1.0–1.1× your “best” Ω (config.yaml).
+        # Default max 100k matches many indoor BME680 “best” readings; if you never see
+        # ~100 in clean air, set scale_max_ohms slightly above your best kΩ×1000.
         t = 100.0 * (gas_ohms - scale_min_ohms) / (scale_max_ohms - scale_min_ohms)
         score = int(max(0, min(100, round(t))))
         label_from_score = True

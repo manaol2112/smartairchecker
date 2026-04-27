@@ -104,7 +104,7 @@ class BME680Monitor:
         baseline = float(iq.get("baseline_ohms", 50_000))
         use_rel = bool(iq.get("use_relative_score", True))
         s_min = float(iq.get("scale_min_ohms", 10_000))
-        s_max = float(iq.get("scale_max_ohms", 200_000))
+        s_max = float(iq.get("scale_max_ohms", 100_000))
         score_good = int(iq.get("score_label_good_min", 67))
         score_mod = int(iq.get("score_label_moderate_min", 34))
         t_base = 24.0
